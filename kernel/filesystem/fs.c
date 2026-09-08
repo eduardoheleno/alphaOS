@@ -4,6 +4,8 @@
 #include "tty.h"
 #include "misc.h"
 
+uint32_t global_root_inode_num;
+
 vnode_t *global_vfs_root = NULL;
 vnode_t *global_tty = NULL;
 
@@ -145,7 +147,124 @@ static void read_inode(uint32_t inode_num, inode_t* inode_buffer)
     kmemcpy(inode_buffer, &sector_buffer[inode_offset * sizeof(inode_t)], sizeof(inode_t));
 }
 
+static uint8_t tar_zero_block(const uint8_t *block)
+{
+    for (size_t i = 0; i < 512; i++) {
+        if (block[i] != 0) {
+            return 0;
+        }
+    }
 
+    return 1;
+}
+
+static void add_dir_inode_im_fs(char* name, int inode_num, int parent_num,
+        struct im_fs* inmemory_fs, struct im_fs_index_table** head)
+{
+    struct im_fs_index_table* tmp = *head;
+    inode_t* inode = kmalloc(sizeof(inode_t));
+    inode->type = DIR_TYPE;
+
+    if (tmp == NULL)
+    {
+        struct im_fs_index_table* index_entry = kmalloc(sizeof(struct im_fs_index_table));
+        kmemcpy(index_entry->name, name, 28);
+        index_entry->index = 0;
+        index_entry->next = NULL;
+        *head = index_entry;
+
+        inmemory_fs[index_entry->index].inode = inode;
+        inmemory_fs[index_entry->index].entries[0].inode_number = inode_num;
+        inmemory_fs[index_entry->index].entries[1].inode_number = parent_num;
+        kmemcpy(inmemory_fs[index_entry->index].entries[0].name, ".", 1);
+        kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
+        return;
+    }
+
+    while (tmp->next != NULL)
+    {
+        tmp = tmp->next;
+    }
+
+    struct im_fs_index_table* index_entry = kmalloc(sizeof(struct im_fs_index_table));
+    kmemcpy(index_entry->name, name, 28);
+    index_entry->index = tmp->index + 1;
+    index_entry->next = NULL;
+    tmp->next = index_entry;
+
+    inmemory_fs[index_entry->index].inode = inode;
+    inmemory_fs[index_entry->index].entries[0].inode_number = inode_num;
+    inmemory_fs[index_entry->index].entries[1].inode_number = parent_num;
+    kmemcpy(inmemory_fs[index_entry->index].entries[0].name, ".", 1);
+    kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
+    return;
+}
+
+static void init_im_fs(struct im_fs* inmemory_fs, struct im_fs_index_table** head)
+{
+    int inode_number = alloc_inode_num();
+    add_dir_inode_im_fs("/", inode_number, inode_number, inmemory_fs, head);
+    global_root_inode_num = inode_number;
+}
+
+static int lookup_parent_inode_num(char* file_path, struct im_fs* inmemory_fs,
+        struct im_fs_index_table* head)
+{
+    int first_slash = 0;
+    for (int i = strlen(file_path) - 2; i >= 0; i--)
+    {
+        if (file_path[i] == '/')
+        {
+            if (first_slash == 0)
+            {
+                first_slash = i;
+                if (first_slash == 1) return global_root_inode_num;
+                continue;
+            }
+
+            char parent_name[28];
+            kmemset(parent_name, 0, sizeof(parent_name));
+            uint16_t cursor = 0;
+            for (int j = i + 1; j < first_slash; j++)
+            {
+                parent_name[cursor++] = file_path[j];
+            }
+
+            while (head != NULL)
+            {
+                if (kstrcmp(head->name, parent_name, strlen(head->name)) == 0)
+                {
+                    return inmemory_fs[head->index].entries[0].inode_number;
+                }
+                head = head->next;
+            }
+        }
+    }
+
+    return -1;
+}
+
+static char* extract_dir_name(char* file_path)
+{
+    char* dir_name = kmalloc(28);
+    for (int i = strlen(file_path) - 2; i >= 0; i--)
+    {
+        if (file_path[i] == '/')
+        {
+            uint16_t cursor = 0;
+            for (int j = i + 1; j < (int)strlen(file_path) - 1; j++)
+            {
+                dir_name[cursor++] = file_path[j];
+            }
+
+            return dir_name;
+        }
+    }
+
+    return NULL;
+}
+
+// static int add_file_inode_im_fs();
 
 void init_fs(multiboot_info_t* mbi)
 {
@@ -155,22 +274,126 @@ void init_fs(multiboot_info_t* mbi)
     init_dbmap();
     init_iblock();
 
-    multiboot_module_t* mbm = (multiboot_module_t*)mbi->mods_addr;
-    tar_header* th = (tar_header*)mbm->mod_start;
+    struct im_fs inmemory_fs[28];
+    struct im_fs_index_table* head = NULL;
 
-    uint64_t file_size = tar_parse_octal(th->file_size, sizeof(th->file_size));
-    uint8_t* file_data = (uint8_t*)th + sizeof(*th);
-    // file_data[0] -> file_data[file_size - 1]
-    
-    th = (tar_header *)(
-        file_data + ((file_size + 511) & ~(uint64_t)511)
-    );
+    init_im_fs(inmemory_fs, &head);
+
+    multiboot_module_t* mbm = (multiboot_module_t*)mbi->mods_addr;
+    uint8_t* cursor = (uint8_t*)(uintptr_t)mbm->mod_start;
+    uint8_t* end = (uint8_t*)(uintptr_t)mbm->mod_end;
+
+    tar_header *first = (tar_header *)cursor;
+    uint64_t first_size =
+        tar_parse_octal(first->file_size, sizeof(first->file_size));
+
+    cursor = (uint8_t *)first +
+        512 +
+        ((first_size + 511) & ~(uint64_t)511);
+
+    while ((size_t)(end - cursor) >= 512) 
+    {
+        if (tar_zero_block(cursor)) 
+        {
+            if ((size_t)(end - cursor) >= 1024 &&
+                tar_zero_block(cursor + 512)) 
+            {
+                break;
+            }
+
+            break;
+        }
+
+        tar_header *th = (tar_header *)cursor;
+        uint64_t file_size = tar_parse_octal(th->file_size, sizeof(th->file_size));
+
+        uint8_t *file_data = cursor + 512;
+        uint64_t padded_size = (file_size + 511) & ~(uint64_t)511;
+
+        if (padded_size > (uint64_t)(end - file_data)) 
+        {
+            break;
+        }
+
+        if (th->file_type == TAR_DIR_TYPE)
+        {
+            char* dir_name = extract_dir_name(th->file_path);
+            int inode_num = alloc_inode_num();
+            // debug_write("inode_num: ");
+            // debug_int(inode_num);
+            // debug_write("\n");
+            int parent_num = lookup_parent_inode_num(th->file_path, inmemory_fs, head);
+            add_dir_inode_im_fs(dir_name, inode_num, parent_num, inmemory_fs, &head);
+            kfree(dir_name);
+        }
+        else if (th->file_type == TAR_FILE_TYPE)
+        {
+            debug_write(th->file_path);
+            debug_write("\n");
+            debug_int(lookup_parent_inode_num(th->file_path, inmemory_fs, head));
+
+            debug_write("\n");
+            debug_write("\n");
+        }
+        // debug_write(th->file_path);
+        // debug_write("\n");
+        // debug_int(th->file_type);
+        // debug_write("\n");
+        // uint32_t parent_num = lookup_parent_inode_num(th->file_path);
+        // debug_int(parent_num);
+        // debug_int(strlen(th->file_path));
+        // debug_write("\n");
+        // debug_write("\n");
+
+        cursor = file_data + padded_size;
+    }
+
+    // while (cursor + 1024 <= end)
+    // {
+    //     if (tar_zero_block(cursor) &&)
+    // }
+    // tar_header* th = (tar_header*)mbm->mod_start;
+
+    // uint64_t file_size = tar_parse_octal(th->file_size, sizeof(th->file_size));
+    // uint8_t* file_data = (uint8_t*)th + sizeof(*th);
+
+    // th = (tar_header *)(
+    //     file_data + ((file_size + 511) & ~(uint64_t)511)
+    // );
 
     // th = (tar_header *)(
     //     (uint8_t *)th +
     //     512 +
     //     ((tar_parse_octal(th->file_size, sizeof(th->file_size)) + 511) & ~511)
     // );
+    // th = (tar_header *)(
+    //     (uint8_t *)th +
+    //     512 +
+    //     ((tar_parse_octal(th->file_size, sizeof(th->file_size)) + 511) & ~511)
+    // );
+    // th = (tar_header *)(
+    //     (uint8_t *)th +
+    //     512 +
+    //     ((tar_parse_octal(th->file_size, sizeof(th->file_size)) + 511) & ~511)
+    // );
+    // th = (tar_header *)(
+    //     (uint8_t *)th +
+    //     512 +
+    //     ((tar_parse_octal(th->file_size, sizeof(th->file_size)) + 511) & ~511)
+    // );
+    // th = (tar_header *)(
+    //     (uint8_t *)th +
+    //     512 +
+    //     ((tar_parse_octal(th->file_size, sizeof(th->file_size)) + 511) & ~511)
+    // );
+    // debug_write(th->file_path);
+    // debug_write("\n");
+    // debug_int(th->file_type);
+    // file_data[0] -> file_data[file_size - 1]
+    
+
+
+
     // th = (tar_header *)(
     //     (uint8_t *)th +
     //     512 +

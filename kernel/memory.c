@@ -513,3 +513,13 @@ void* kmemset(void* ptr, int x, size_t n)
 
     return ptr;
 }
+
+int kstrcmp(char* ptr1, char* ptr2, size_t num)
+{
+    for (size_t i = 0; i < num; i++)
+    {
+        if (ptr1[i] != ptr2[i]) return -1;
+    }
+
+    return 0;
+}

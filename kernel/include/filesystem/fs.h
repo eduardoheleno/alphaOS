@@ -15,6 +15,9 @@
 #define FILE_TYPE 1
 #define DIR_TYPE  2
 
+#define TAR_FILE_TYPE 48
+#define TAR_DIR_TYPE  53
+
 struct inode
 {
     uint8_t type;
@@ -28,6 +31,19 @@ struct dir_entry
 {
     uint32_t inode_number;
     char name[28];
+};
+
+struct im_fs
+{
+    inode_t* inode;
+    struct dir_entry entries[28];
+};
+
+struct im_fs_index_table
+{
+    char name[28];
+    uint32_t index;
+    struct im_fs_index_table* next;
 };
 
 struct vnode_ops
