@@ -36,6 +36,7 @@ struct dir_entry
 struct im_fs
 {
     inode_t* inode;
+    uint32_t entries_count;
     struct dir_entry entries[28];
 };
 

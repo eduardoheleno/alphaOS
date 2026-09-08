@@ -4,6 +4,8 @@
 #include "tty.h"
 #include "misc.h"
 
+// TODO: improve naming
+
 uint32_t global_root_inode_num;
 
 vnode_t *global_vfs_root = NULL;
@@ -158,7 +160,7 @@ static uint8_t tar_zero_block(const uint8_t *block)
     return 1;
 }
 
-static void add_dir_inode_im_fs(char* name, int inode_num, int parent_num,
+static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, int parent_num,
         struct im_fs* inmemory_fs, struct im_fs_index_table** head)
 {
     struct im_fs_index_table* tmp = *head;
@@ -178,7 +180,20 @@ static void add_dir_inode_im_fs(char* name, int inode_num, int parent_num,
         inmemory_fs[index_entry->index].entries[1].inode_number = parent_num;
         kmemcpy(inmemory_fs[index_entry->index].entries[0].name, ".", 1);
         kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
+        inmemory_fs[index_entry->index].entries_count = 2;
         return;
+    }
+
+    uint32_t parent_index = 0;
+    struct im_fs_index_table* buf = *head;
+    while (buf != NULL)
+    {
+        if (kstrcmp(buf->name, parent_name, strlen(buf->name)) == 0)
+        {
+            parent_index = buf->index;
+            break;
+        }
+        buf = buf->next;
     }
 
     while (tmp->next != NULL)
@@ -197,13 +212,23 @@ static void add_dir_inode_im_fs(char* name, int inode_num, int parent_num,
     inmemory_fs[index_entry->index].entries[1].inode_number = parent_num;
     kmemcpy(inmemory_fs[index_entry->index].entries[0].name, ".", 1);
     kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
+    inmemory_fs[index_entry->index].entries_count = 2;
+
+    struct dir_entry* entries = inmemory_fs[parent_index].entries;
+    uint32_t entries_count = inmemory_fs[parent_index].entries_count;
+
+    kmemcpy(entries[entries_count++].name, name, 28);
+    entries[entries_count].inode_number = inode_num;
+
+    inmemory_fs[parent_index].entries_count = entries_count;
+    inmemory_fs[parent_index].inode->size = sizeof(struct dir_entry) * entries_count;
     return;
 }
 
 static void init_im_fs(struct im_fs* inmemory_fs, struct im_fs_index_table** head)
 {
     int inode_number = alloc_inode_num();
-    add_dir_inode_im_fs("/", inode_number, inode_number, inmemory_fs, head);
+    add_dir_inode_im_fs("/", "/", inode_number, inode_number, inmemory_fs, head);
     global_root_inode_num = inode_number;
 }
 
@@ -244,9 +269,9 @@ static int lookup_parent_inode_num(char* file_path, struct im_fs* inmemory_fs,
     return -1;
 }
 
-static char* extract_dir_name(char* file_path)
+static char* extract_dirname(char* file_path)
 {
-    char* dir_name = kmalloc(28);
+    char* dirname = kmalloc(28);
     for (int i = strlen(file_path) - 2; i >= 0; i--)
     {
         if (file_path[i] == '/')
@@ -254,17 +279,117 @@ static char* extract_dir_name(char* file_path)
             uint16_t cursor = 0;
             for (int j = i + 1; j < (int)strlen(file_path) - 1; j++)
             {
-                dir_name[cursor++] = file_path[j];
+                dirname[cursor++] = file_path[j];
             }
 
-            return dir_name;
+            return dirname;
         }
     }
 
     return NULL;
 }
 
-// static int add_file_inode_im_fs();
+static char* extract_filename(char* file_path)
+{
+    char* dirname = kmalloc(28);
+    for (int i = strlen(file_path) - 1; i >= 0; i--)
+    {
+        if (file_path[i] == '/')
+        {
+            uint16_t cursor = 0;
+            for (int j = i + 1; j < (int)strlen(file_path); j++)
+            {
+                dirname[cursor++] = file_path[j];
+            }
+
+            return dirname;
+        }
+    }
+
+    return NULL;
+}
+
+static char* extract_parent_name(char* file_path)
+{
+    char* parent_name = kmalloc(28);
+    int first_slash = 0;
+    for (int i = strlen(file_path) - 1; i >= 0; i--)
+    {
+        if (file_path[i] == '/')
+        {
+            if (first_slash == 0)
+            {
+                first_slash = i;
+                continue;
+            }
+
+            uint16_t cursor = 0;
+            for (int j = i + 1; j < first_slash; j++)
+            {
+                parent_name[cursor++] = file_path[j];
+            }
+            return parent_name;
+        }
+    }
+
+    return NULL;
+}
+
+static char* extract_parent_name2(char* file_path)
+{
+    char* parent_name = kmalloc(28);
+    int first_slash = 0;
+    for (int i = strlen(file_path) - 2; i >= 0; i--)
+    {
+        if (file_path[i] == '/')
+        {
+            if (first_slash == 0)
+            {
+                first_slash = i;
+                continue;
+            }
+
+            uint16_t cursor = 0;
+            for (int j = i + 1; j < first_slash; j++)
+            {
+                parent_name[cursor++] = file_path[j];
+            }
+            return parent_name;
+        }
+
+        if (file_path[i] == '.')
+        {
+            parent_name = "/";
+            return parent_name;
+        }
+    }
+
+    return NULL;
+}
+
+static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
+        struct im_fs* inmemory_fs, struct im_fs_index_table** head)
+{
+    struct im_fs_index_table* tmp = *head;
+    int index = 0;
+    while (tmp != NULL)
+    {
+        if (kstrcmp(tmp->name, parent_name, 28) == 0)
+        {
+            index = tmp->index;
+            break;
+        }
+        tmp = tmp->next;
+    }
+
+    struct dir_entry* entries = inmemory_fs[index].entries;
+    uint32_t entries_count = inmemory_fs[index].entries_count;
+    kmemcpy(entries[entries_count++].name, name, 28);
+    entries[entries_count].inode_number = inode_num;
+
+    inmemory_fs[index].entries_count = entries_count;
+    inmemory_fs[index].inode->size = sizeof(struct dir_entry) * entries_count;
+}
 
 void init_fs(multiboot_info_t* mbi)
 {
@@ -317,23 +442,38 @@ void init_fs(multiboot_info_t* mbi)
 
         if (th->file_type == TAR_DIR_TYPE)
         {
-            char* dir_name = extract_dir_name(th->file_path);
+            char* dir_name = extract_dirname(th->file_path);
             int inode_num = alloc_inode_num();
-            // debug_write("inode_num: ");
-            // debug_int(inode_num);
-            // debug_write("\n");
             int parent_num = lookup_parent_inode_num(th->file_path, inmemory_fs, head);
-            add_dir_inode_im_fs(dir_name, inode_num, parent_num, inmemory_fs, &head);
+            char* parent_name = extract_parent_name2(th->file_path);
+            // debug_write(parent_name);
+            // debug_write("\n");
+            // debug_write(th->file_path);
+            // debug_write("\n");
+            // debug_write("\n");
+            add_dir_inode_im_fs(dir_name, parent_name, inode_num, parent_num, inmemory_fs, &head);
             kfree(dir_name);
+            kfree(parent_name);
         }
         else if (th->file_type == TAR_FILE_TYPE)
         {
-            debug_write(th->file_path);
-            debug_write("\n");
-            debug_int(lookup_parent_inode_num(th->file_path, inmemory_fs, head));
+            int inode_num = alloc_inode_num();
+            char* filename = extract_filename(th->file_path);
+            char* parent_name = extract_parent_name(th->file_path);
+            add_file_inode_im_fs(filename, parent_name, inode_num, inmemory_fs, &head);
+            // debug_write(th->file_path);
+            // debug_write("\n");
+            // debug_write("filename: ");
+            // debug_write(extract_filename(th->file_path));
+            // debug_write("\n");
+            // debug_write("parent_name: ");
+            // debug_write(extract_parent_name(th->file_path));
+            // debug_write("\n");
+            // debug_int(lookup_parent_inode_num(th->file_path, inmemory_fs, head));
+            // debug_write("\n");
 
-            debug_write("\n");
-            debug_write("\n");
+            // debug_write("\n");
+            // debug_write("\n");
         }
         // debug_write(th->file_path);
         // debug_write("\n");
@@ -344,10 +484,13 @@ void init_fs(multiboot_info_t* mbi)
         // debug_int(strlen(th->file_path));
         // debug_write("\n");
         // debug_write("\n");
-
         cursor = file_data + padded_size;
     }
 
+    // debug_int(head->index);
+    // debug_write("\n");
+    debug_write(inmemory_fs[3].entries[2].name);
+    debug_write("\n");
     // while (cursor + 1024 <= end)
     // {
     //     if (tar_zero_block(cursor) &&)
