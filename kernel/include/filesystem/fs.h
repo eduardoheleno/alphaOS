@@ -33,11 +33,19 @@ struct dir_entry
     char name[28];
 };
 
+struct imdir_entry
+{
+    uint32_t inode_number;
+    char name[28];
+    size_t size;
+    uint8_t* data;
+};
+
 struct im_fs
 {
     inode_t* inode;
     uint32_t entries_count;
-    struct dir_entry entries[28];
+    struct imdir_entry entries[28];
 };
 
 struct im_fs_index_table
@@ -91,7 +99,7 @@ struct tar_header
 typedef struct tar_header tar_header;
 
 void init_fs(multiboot_info_t* mbi);
-void init_vfs(multiboot_info_t* mbi);
+// void init_vfs(multiboot_info_t* mbi);
 file_t* open_file(vnode_t *vnode, uint8_t flags);
 
 #endif
