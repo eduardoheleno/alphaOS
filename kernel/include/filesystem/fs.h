@@ -36,6 +36,7 @@ struct dir_entry
 struct imdir_entry
 {
     uint32_t inode_number;
+    uint8_t type;
     char name[28];
     size_t size;
     uint8_t* data;
@@ -99,7 +100,6 @@ struct tar_header
 typedef struct tar_header tar_header;
 
 void init_fs(multiboot_info_t* mbi);
-// void init_vfs(multiboot_info_t* mbi);
 file_t* open_file(vnode_t *vnode, uint8_t flags);
 
 #endif

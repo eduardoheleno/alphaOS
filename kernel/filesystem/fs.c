@@ -5,41 +5,12 @@
 #include "misc.h"
 
 // TODO: improve naming
+// TODO: kfree unused memory
 
 uint32_t global_root_inode_num;
 
 vnode_t *global_vfs_root = NULL;
 vnode_t *global_tty = NULL;
-
-static vnode_t* create_vnode(const char *name)
-{
-    vnode_t *vnode = kmalloc(sizeof(vnode_t));
-    vnode->name = name;
-    vnode->parent = NULL;
-    vnode->children = NULL;
-    vnode->next_sibling = NULL;
-    vnode->ops = NULL;
-
-    return vnode;
-}
-
-static void mount_file_on_dir(vnode_t *file, vnode_t *dir)
-{
-    file->parent = dir;
-    if (dir->children == NULL)
-    {
-        dir->children = file;
-    }
-    else
-    {
-        vnode_t *tmp = dir->children;
-        while (tmp->next_sibling)
-        {
-            tmp = tmp->next_sibling;
-        }
-        tmp->next_sibling = file;
-    }
-}
 
 static void init_ibmap(void)
 {
@@ -163,16 +134,6 @@ static uint8_t tar_zero_block(const uint8_t *block)
 static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, int parent_num,
         struct im_fs* inmemory_fs, struct im_fs_index_table** head)
 {
-    // debug_write("inode_num: ");
-    // debug_int(inode_num);
-    // debug_write("\n");
-    // debug_write("name: ");
-    // debug_write(name);
-    // debug_write("\n");
-    // debug_write("parent_name: ");
-    // debug_write(parent_name);
-    // debug_write("\n");
-    // debug_write("\n");
     struct im_fs_index_table* tmp = *head;
     inode_t* inode = kmalloc(sizeof(inode_t));
     inode->type = DIR_TYPE;
@@ -188,6 +149,8 @@ static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, in
         inmemory_fs[index_entry->index].inode = inode;
         inmemory_fs[index_entry->index].entries[0].inode_number = inode_num;
         inmemory_fs[index_entry->index].entries[1].inode_number = parent_num;
+        inmemory_fs[index_entry->index].entries[0].type = DIR_TYPE;
+        inmemory_fs[index_entry->index].entries[1].type = DIR_TYPE;
         kmemcpy(inmemory_fs[index_entry->index].entries[0].name, ".", 1);
         kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
         inmemory_fs[index_entry->index].entries_count = 2;
@@ -220,18 +183,18 @@ static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, in
     inmemory_fs[index_entry->index].inode = inode;
     inmemory_fs[index_entry->index].entries[0].inode_number = inode_num;
     inmemory_fs[index_entry->index].entries[1].inode_number = parent_num;
+    inmemory_fs[index_entry->index].entries[0].type = DIR_TYPE;
+    inmemory_fs[index_entry->index].entries[1].type = DIR_TYPE;
     kmemcpy(inmemory_fs[index_entry->index].entries[0].name, ".", 1);
     kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
     inmemory_fs[index_entry->index].entries_count = 2;
 
     struct imdir_entry* entries = inmemory_fs[parent_index].entries;
     uint32_t entries_count = inmemory_fs[parent_index].entries_count;
-
     kmemcpy(entries[entries_count].name, name, 28);
-    entries[entries_count++].inode_number = inode_num;
-
-    inmemory_fs[parent_index].entries_count = entries_count;
-    inmemory_fs[parent_index].inode->size = sizeof(struct imdir_entry) * entries_count;
+    entries[entries_count].type = DIR_TYPE;
+    entries[entries_count].inode_number = inode_num;
+    inmemory_fs[parent_index].entries_count = entries_count + 1;
     return;
 }
 
@@ -404,8 +367,8 @@ static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
     inmemory_fs[index].entries[entries_count].inode_number = inode_num;
     inmemory_fs[index].entries[entries_count].data = file_data;
     inmemory_fs[index].entries[entries_count].size = file_size;
+    inmemory_fs[index].entries[entries_count].type = FILE_TYPE;
     inmemory_fs[index].entries_count = entries_count + 1;
-    inmemory_fs[index].inode->size = sizeof(struct imdir_entry) * entries_count;
 }
 
 static void init_vfs(multiboot_module_t* mbm,
@@ -433,7 +396,6 @@ static void init_vfs(multiboot_module_t* mbm,
             {
                 break;
             }
-
             break;
         }
 
@@ -467,7 +429,6 @@ static void init_vfs(multiboot_module_t* mbm,
             kfree(filename);
             kfree(parent_name);
         }
-
         cursor = file_data + padded_size;
     }
 }
@@ -479,12 +440,29 @@ void persist_inmemory_fs(struct im_fs* inmemory_fs)
     while (dir_inode != NULL)
     {
         struct im_fs im_file = inmemory_fs[cursor];
-        // struct imdir_entry* entries = inmemory_fs[cursor].entries;
-
+        struct dir_entry persisted_entries[im_file.entries_count];
         for (uint32_t i = 0; i < inmemory_fs[cursor].entries_count; i++)
         {
-            // struct imdir_entry entry = inmemory_fs[cursor].entries[i];
+            struct imdir_entry entry = inmemory_fs[cursor].entries[i];
+            struct dir_entry persisted_entry;
+            persisted_entry.inode_number = entry.inode_number;
+            kmemcpy(persisted_entry.name, entry.name, 28);
+            persisted_entries[i] = persisted_entry;
+            if (entry.type == FILE_TYPE)
+            {
+                inode_t inode;
+                inode.type = FILE_TYPE;
+                inode.size = entry.size;
+                inode.sectors = (entry.size + 511) / 512;
+                write_inode_data(&inode, entry.data, entry.size);
+                write_inode(inode, entry.inode_number);
+            }
         }
+        im_file.inode->size = sizeof(persisted_entries);
+        im_file.inode->sectors = (im_file.inode->size + 511) / 512;
+        write_inode_data(im_file.inode, (uint8_t*)persisted_entries, sizeof(persisted_entries));
+        write_inode(*im_file.inode, im_file.entries[0].inode_number);
+
         dir_inode = inmemory_fs[++cursor].inode;
     }
 }
@@ -501,47 +479,15 @@ void init_fs(multiboot_info_t* mbi)
     struct im_fs* inmemory_fs = kmalloc(sizeof(struct im_fs) * 28);
     struct im_fs_index_table* head = NULL;
     init_vfs((multiboot_module_t*)mbi->mods_addr, inmemory_fs, &head);
+    persist_inmemory_fs(inmemory_fs);
 
-    uint32_t cursor = 0;
-    inode_t* dir_inode = inmemory_fs[cursor].inode;
-    while (dir_inode != NULL)
-    {
-        for (uint32_t i = 0; i < inmemory_fs[cursor].entries_count; i++)
-        {
-            struct imdir_entry entry = inmemory_fs[cursor].entries[i];
-            debug_write("entry_name: ");
-            debug_write(entry.name);
-            debug_write("\n");
-            debug_write("inode_number: ");
-            debug_int(entry.inode_number);
-            debug_write("\n");
-        }
-
-        debug_write("\n");
-        dir_inode = inmemory_fs[++cursor].inode;
-    }
+    inode_t* inode = kmalloc(sizeof(inode_t));
+    read_inode(5, inode);
+    // struct dir_entry* entries = (struct dir_entry*)read_inode_data(*inode);
+    debug_write("sector: ");
+    debug_int(inode->sector[0]);
+    debug_write("\n");
 }
-
-// void init_vfs(multiboot_info_t* mbi)
-// {
-//     multiboot_module_t* mbm = (multiboot_module_t*)mbi->mods_addr;
-//     tar_header* th = (tar_header*)mbm->mod_start;
-//     // th = (tar_header*)((uint32_t)th + 512);
-//
-//     debug_write(th->file_path);
-//     // debug_hex32((uint32_t)th);
-//     // debug_write("\n");
-//     // debug_hex32(mbm->mod_start + 512);
-//
-//     global_vfs_root = create_vnode("/");
-//     vnode_t *dev_dir = create_vnode("dev");
-//     global_tty = create_vnode("tty");
-//
-//     global_tty->ops = tty_ops();
-//
-//     mount_file_on_dir(global_tty, dev_dir);
-//     mount_file_on_dir(dev_dir, global_vfs_root);
-// }
 
 file_t* open_file(vnode_t *vnode, uint8_t flags)
 {
