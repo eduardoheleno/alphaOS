@@ -19,6 +19,24 @@ static void init_ibmap(void)
     disk_write(9, 8, bitmap_area);
 }
 
+static void write_magic(void)
+{
+    uint8_t magic_buffer[512];
+    uint16_t magic = FS_MAGIC;
+    kmemcpy(magic_buffer, &magic, sizeof(magic));
+    disk_write(0, 1, magic_buffer);
+}
+
+static int check_magic(void)
+{
+    uint8_t magic_buffer[512];
+    disk_read(0, 1, (uint16_t*)magic_buffer);
+    uint16_t magic;
+    kmemcpy(&magic, magic_buffer, sizeof(magic));
+
+    return magic == FS_MAGIC;
+}
+
 static void init_dbmap(void)
 {
     uint8_t bitmap_area[4096];
@@ -470,7 +488,8 @@ void persist_inmemory_fs(struct im_fs* inmemory_fs)
 void init_fs(multiboot_info_t* mbi)
 {
     // TODO: check possible error
-    // TODO: check if filesystem is already initialized
+    if (check_magic()) return;
+    write_magic();
     init_disk();
     init_ibmap();
     init_dbmap();
@@ -484,9 +503,9 @@ void init_fs(multiboot_info_t* mbi)
     inode_t* inode = kmalloc(sizeof(inode_t));
     read_inode(5, inode);
     // struct dir_entry* entries = (struct dir_entry*)read_inode_data(*inode);
-    debug_write("sector: ");
-    debug_int(inode->sector[0]);
-    debug_write("\n");
+    // debug_write("sector: ");
+    // debug_int(inode->sector[0]);
+    // debug_write("\n");
 }
 
 file_t* open_file(vnode_t *vnode, uint8_t flags)

@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include "multiboot.h"
 
+#define FS_MAGIC 0x776
+
 #define IBLOCK_OFFSET 25
 #define DATA_OFFSET   65
 
