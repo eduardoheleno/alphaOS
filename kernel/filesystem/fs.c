@@ -4,9 +4,6 @@
 #include "tty.h"
 #include "misc.h"
 
-// TODO: improve naming
-// TODO: kfree unused memory
-
 uint32_t global_root_inode_num;
 
 vnode_t *global_vfs_root = NULL;
@@ -451,6 +448,16 @@ static void init_vfs(multiboot_module_t* mbm,
     }
 }
 
+void free_index_table(struct im_fs_index_table* head)
+{
+    while (head != NULL)
+    {
+        struct im_fs_index_table* next = head->next;
+        kfree(head);
+        head = next;
+    }
+}
+
 void persist_inmemory_fs(struct im_fs* inmemory_fs)
 {
     uint32_t cursor = 0;
@@ -481,6 +488,7 @@ void persist_inmemory_fs(struct im_fs* inmemory_fs)
         write_inode_data(im_file.inode, (uint8_t*)persisted_entries, sizeof(persisted_entries));
         write_inode(*im_file.inode, im_file.entries[0].inode_number);
 
+        kfree(im_file.inode);
         dir_inode = inmemory_fs[++cursor].inode;
     }
 }
@@ -499,13 +507,7 @@ void init_fs(multiboot_info_t* mbi)
     struct im_fs_index_table* head = NULL;
     init_vfs((multiboot_module_t*)mbi->mods_addr, inmemory_fs, &head);
     persist_inmemory_fs(inmemory_fs);
-
-    inode_t* inode = kmalloc(sizeof(inode_t));
-    read_inode(5, inode);
-    // struct dir_entry* entries = (struct dir_entry*)read_inode_data(*inode);
-    // debug_write("sector: ");
-    // debug_int(inode->sector[0]);
-    // debug_write("\n");
+    free_index_table(head);
 }
 
 file_t* open_file(vnode_t *vnode, uint8_t flags)
