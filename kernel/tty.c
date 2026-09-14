@@ -191,14 +191,12 @@ static int tty_ioctl(unsigned long request, void *arg)
     return 1;
 }
 
-vnode_ops_t* tty_ops(void)
+file_ops_t tty_ops(void)
 {
-    vnode_ops_t *ops = kmalloc(sizeof(vnode_ops_t));
-    *ops = (vnode_ops_t){
+    return (file_ops_t){
         .read = tty_read,
         .write = tty_write,
-        .ioctl = tty_ioctl,
+        .ioctl = NULL,
         .close = NULL
     };
-    return ops;
 }

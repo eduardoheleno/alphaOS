@@ -1,13 +1,12 @@
 #include "filesystem/fs.h"
 #include "filesystem/disk.h"
+#include "filesystem/device.h"
 #include "memory.h"
 #include "tty.h"
 #include "misc.h"
 
-uint32_t global_root_inode_num;
-
-vnode_t *global_vfs_root = NULL;
-vnode_t *global_tty = NULL;
+static file_t devices[TOTAL_DEVICES];
+static uint32_t global_root_inode_num;
 
 static void init_ibmap(void)
 {
@@ -360,6 +359,73 @@ static char* extract_parent_name2(char* file_path)
     return NULL;
 }
 
+static file_t* lookup_devices(char* name)
+{
+    for (uint16_t i = 0; i < TOTAL_DEVICES; i++)
+    {
+        char* device_name = devices[i].name;
+        if (kstrcmp(device_name, name, strlen(device_name)) == 0)
+        {
+            return &devices[i];
+        }
+    }
+
+    return NULL;
+}
+
+static void next_dir_name(char* buffer, uint32_t* cursor, size_t* size, char* path)
+{
+    *size = 0;
+    while (path[*cursor] != '/')
+    {
+        buffer[*size] = path[*cursor];
+        *size = *size + 1;
+        *cursor = *cursor + 1;
+    }
+    *cursor = *cursor + 1;
+}
+
+static file_t* search_on_disk(char* path)
+{
+    char* target_file = extract_filename(path);
+    char dirname[512];
+    uint32_t cursor = 1;
+    uint32_t size = 0;
+    inode_t root_inode;
+    read_inode(global_root_inode_num, &root_inode);
+    inode_t current_inode = root_inode;
+    struct dir_entry* entries = (struct dir_entry*)read_inode_data(current_inode);
+    next_dir_name(dirname, &cursor, &size, path);
+    while (1)
+    {
+        for (uint16_t i = 0; i < current_inode.size / sizeof(struct dir_entry); i++)
+        {
+            struct dir_entry entry = entries[i];
+            if (kstrcmp(entry.name, dirname, strlen(entry.name)) == 0)
+            {
+                if (kstrcmp(dirname, target_file, strlen(target_file)) == 0)
+                {
+                    kfree(entries);
+
+                    read_inode(entry.inode_number, &current_inode);
+                    uint8_t* file_bytes = read_inode_data(current_inode);
+                    file_t* file = kmalloc(sizeof(file_t));
+                    file->data = file_bytes;
+                    file->size = current_inode.size;
+                    kmemcpy(file->name, entry.name, strlen(entry.name));
+                    return file;
+                }
+
+                read_inode(entry.inode_number, &current_inode);
+                kfree(entries);
+                entries = (struct dir_entry*)read_inode_data(current_inode);
+                break;
+            }
+        }
+        next_dir_name(dirname, &cursor, &size, path);
+    }
+}
+
 static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
         uint8_t* file_data, size_t file_size, struct im_fs* inmemory_fs, struct im_fs_index_table** head)
 {
@@ -508,14 +574,19 @@ void init_fs(multiboot_info_t* mbi)
     init_vfs((multiboot_module_t*)mbi->mods_addr, inmemory_fs, &head);
     persist_inmemory_fs(inmemory_fs);
     free_index_table(head);
+
+    init_devices(devices);
 }
 
-file_t* open_file(vnode_t *vnode, uint8_t flags)
+file_t* open_file(char* path)
 {
-    file_t *file = kmalloc(sizeof(file_t));
-    file->name = vnode->name;
-    file->ops = vnode->ops;
-    file->flags = flags;
+    if (kstrcmp(path, "/dev", 4) == 0)
+    {
+        char* filename = extract_filename(path);
+        file_t* device = lookup_devices(filename);
+        kfree(filename);
+        return device;
+    }
 
-    return file;
+    return search_on_disk(path);
 }

@@ -451,9 +451,17 @@ void* kmalloc(size_t size)
             new_slab->free_list[i] = (void*) addr_start + (slab_cache->obj_size * i);
         }
 
-        slab_cache->partial = new_slab;
+        void* addr = new_slab->free_list[--new_slab->free_count];
+        if (new_slab->free_count == 0)
+        {
+            slab_cache->full = new_slab;
+        }
+        else
+        {
+            slab_cache->partial = new_slab;
+        }
 
-        return new_slab->free_list[new_slab->free_count-- - 1];
+        return addr;
     }
 
     return NULL;
@@ -469,25 +477,33 @@ void kfree(void *ptr)
     }
 
     slab->free_list[slab->free_count++] = ptr;
-    if (slab->free_count == 1) 
+    if (slab->free_count == slab->total_count)
     {
         if (slab->prev != NULL) slab->prev->next = slab->next;
         if (slab->next != NULL) slab->next->prev = slab->prev;
-        if (slab->cache_owner->full == slab) slab->cache_owner->full = slab->next;
 
-        if (slab->cache_owner->partial != NULL) slab->cache_owner->partial->prev = slab;
+        if (slab->cache_owner->partial == slab)
+            slab->cache_owner->partial = slab->next;
+
+        if (slab->cache_owner->full == slab)
+            slab->cache_owner->full = slab->next;
+        unmmap((uintptr_t)slab, 1);
+        return;
+    }
+
+    if (slab->free_count == 1)
+    {
+        if (slab->prev != NULL) slab->prev->next = slab->next;
+        if (slab->next != NULL) slab->next->prev = slab->prev;
+        if (slab->cache_owner->full == slab)
+            slab->cache_owner->full = slab->next;
+
+        if (slab->cache_owner->partial != NULL)
+            slab->cache_owner->partial->prev = slab;
+
         slab->next = slab->cache_owner->partial;
         slab->prev = NULL;
         slab->cache_owner->partial = slab;
-    }
-
-    if (slab->free_count == slab->total_count) 
-    {
-        if (slab->prev != NULL) slab->prev->next = slab->next;
-        if (slab->next != NULL) slab->next->prev = slab->prev;
-        if (slab->cache_owner->partial == slab) slab->cache_owner->partial = slab->next;
-
-        unmmap((uintptr_t) slab, 1);
     }
 }
 

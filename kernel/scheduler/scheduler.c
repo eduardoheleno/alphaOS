@@ -21,8 +21,6 @@ extern tss_t tss;
 extern uintptr_t kernel_page_directory[];
 extern void restore_task_context(cpu_task_state_t*);
 
-extern vnode_t *global_tty;
-
 static void wake_idle_task(void)
 {
     idle_task->status = TASK_SCHEDULER_IDLE;
@@ -166,9 +164,9 @@ static task_t* create_task(void *entry, task_type_t type)
     new_task->context.ecx = 0;
     new_task->context.eax = 0;
 
-    new_task->fds[FD_STDIN] = open_file(global_tty, RONLY_FLAG);
-    new_task->fds[FD_STDOUT] = open_file(global_tty, WONLY_FLAG);
-    new_task->fds[FD_STDERR] = open_file(global_tty, WONLY_FLAG);
+    new_task->fds[FD_STDIN] = open_file("/dev/tty");
+    new_task->fds[FD_STDOUT] = open_file("/dev/tty");
+    new_task->fds[FD_STDERR] = open_file("/dev/tty");
     new_task->total_fds = 3;
 
     new_task->pid = next_pid++;

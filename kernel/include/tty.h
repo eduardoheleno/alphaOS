@@ -49,6 +49,6 @@ void terminal_write(const char* data, size_t size);
 size_t strlen(const char* str);
 void write_tty_buffer(char c);
 int stdin_buffer_has_line(void);
-vnode_ops_t* tty_ops(void);
+file_ops_t tty_ops(void);
 
 #endif

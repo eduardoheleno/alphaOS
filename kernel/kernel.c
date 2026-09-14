@@ -43,6 +43,9 @@ void kernel_main(
     pic_init(0x20, 0x28);
     pit_init();
     init_fs(mbi);
+    file_t* f = open_file("/bin/hello");
+    debug_int(f->size);
+    debug_write("\n");
     init_scheduler();
     enable_interrupts();
 

@@ -26,6 +26,7 @@ C_SRCS := \
 	timer.c \
 	filesystem/fs.c \
 	filesystem/disk.c \
+	filesystem/device.c \
 	gdt/gdt.c \
 	idt/idt.c \
 	scheduler/scheduler.c \

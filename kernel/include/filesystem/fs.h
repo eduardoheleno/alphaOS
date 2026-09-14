@@ -20,6 +20,8 @@
 #define TAR_FILE_TYPE 48
 #define TAR_DIR_TYPE  53
 
+#define TOTAL_DEVICES 10
+
 struct inode
 {
     uint8_t type;
@@ -58,30 +60,40 @@ struct im_fs_index_table
     struct im_fs_index_table* next;
 };
 
-struct vnode_ops
+struct file_ops
 {
     size_t (*read)(void *buffer, size_t len);
     void (*write)(const void *buffer, size_t len);
     int (*ioctl)(unsigned long request, void *arg);
     int (*close)(void);
 };
-typedef struct vnode_ops vnode_ops_t;
+typedef struct file_ops file_ops_t;
 
-struct vnode
-{
-    const char *name;
-    struct vnode *parent;
-    struct vnode *children;
-    struct vnode *next_sibling;
-    struct vnode_ops *ops;
-};
-typedef struct vnode vnode_t;
+// struct vnode_ops
+// {
+//     size_t (*read)(void *buffer, size_t len);
+//     void (*write)(const void *buffer, size_t len);
+//     int (*ioctl)(unsigned long request, void *arg);
+//     int (*close)(void);
+// };
+// typedef struct vnode_ops vnode_ops_t;
+
+// struct vnode
+// {
+//     const char *name;
+//     struct vnode *parent;
+//     struct vnode *children;
+//     struct vnode *next_sibling;
+//     struct vnode_ops *ops;
+// };
+// typedef struct vnode vnode_t;
 
 struct file
 {
-    const char *name;
-    struct vnode_ops *ops;
-    unsigned long flags;
+    char name[28];
+    file_ops_t ops;
+    void* data;
+    size_t size;
 };
 typedef struct file file_t;
 
@@ -102,6 +114,7 @@ struct tar_header
 typedef struct tar_header tar_header;
 
 void init_fs(multiboot_info_t* mbi);
-file_t* open_file(vnode_t *vnode, uint8_t flags);
+file_t* open_file(char* path);
+// file_t* open_file(vnode_t *vnode, uint8_t flags);
 
 #endif
