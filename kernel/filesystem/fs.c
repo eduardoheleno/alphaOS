@@ -541,8 +541,18 @@ void init_fs(multiboot_info_t* mbi)
 
 static size_t fs_read(file_t* f, void* buffer, size_t size)
 {
+    uint32_t target_size;
+    if (f->inode.size - f->off <= size)
+    {
+        target_size = f->inode.size - f->off;
+    }
+    else
+    {
+        target_size = size;
+    }
+
     uint32_t sector_index = ((f->off + 511) / 512) - 1;
-    uint32_t sector_total = (size + 511) / 512;
+    uint32_t sector_total = (target_size + 511) / 512;
     size_t read_bytes = 0;
     for (uint32_t i = 0; i < sector_total; i++)
     {
@@ -550,30 +560,31 @@ static size_t fs_read(file_t* f, void* buffer, size_t size)
         disk_read(DATA_OFFSET + f->inode.sector[sector_index], 1, (uint16_t*)sector_buffer);
         if (i == 0)
         {
-            if (size >= 512 - f->off)
+            if (target_size >= 512 - f->off)
             {
                 kmemcpy(buffer, &sector_buffer[f->off], 512 - f->off);
                 read_bytes += 512 - f->off;
             }
             else
             {
-                kmemcpy(buffer, &sector_buffer[f->off], size);
-                read_bytes += size;
+                kmemcpy(buffer, &sector_buffer[f->off], target_size);
+                read_bytes += target_size;
             }
         }
         else
         {
-            if (size - read_bytes >= 512)
+            if (target_size - read_bytes >= 512)
             {
                 kmemcpy(buffer + read_bytes, sector_buffer, 512);
                 read_bytes += 512;
             }
             else
             {
-                kmemcpy(buffer + read_bytes, sector_buffer, size - read_bytes);
-                read_bytes += size - read_bytes;
+                kmemcpy(buffer + read_bytes, sector_buffer, target_size - read_bytes);
+                read_bytes += target_size - read_bytes;
             }
         }
+        f->off = read_bytes;
         sector_index++;
     }
 
