@@ -11,6 +11,7 @@
 #include "scheduler.h"
 #include "misc.h"
 #include "graphics/font.h"
+#include "tty.h"
 
 /* Check if the compiler thinks you are targeting the wrong operating system. */
 #if defined(__linux__)
@@ -43,14 +44,16 @@ void kernel_main(
     pic_init(0x20, 0x28);
     pit_init();
     init_fs(mbi);
-    file_t* f = open_file("/bin/hello");
-    debug_int(f->size);
-    debug_write("\n");
     init_scheduler();
     enable_interrupts();
 
     unmap_identity();
     reload_cr3();
+
+    file_t* f = open_file("/bin/test.txt");
+    void* test = kmalloc(2000);
+    debug_int(f->ops.read(f, test, f->inode.size));
+    terminal_writestring(test);
 
     for (;;) 
     {

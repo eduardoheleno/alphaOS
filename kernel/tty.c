@@ -158,7 +158,7 @@ int stdin_buffer_has_line(void)
     return -1;
 }
 
-static size_t tty_read(void *buffer, size_t len)
+static size_t tty_read(file_t* f, void *buffer, size_t len)
 {
     size_t i = 0;
     char *out = buffer;
@@ -171,12 +171,12 @@ static size_t tty_read(void *buffer, size_t len)
     return i * sizeof(char);
 }
 
-static void tty_write(const void *buf, size_t len)
+static void tty_write(file_t* f, const void *buf, size_t len)
 {
     terminal_write(buf, len);
 }
 
-static int tty_ioctl(unsigned long request, void *arg)
+static int tty_ioctl(file_t* f, unsigned long request, void *arg)
 {
     unsigned long casted_arg = (unsigned long)arg;
     switch (request)

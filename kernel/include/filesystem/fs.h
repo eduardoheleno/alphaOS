@@ -22,6 +22,9 @@
 
 #define TOTAL_DEVICES 10
 
+typedef struct file file_t;
+typedef struct file_ops file_ops_t;
+
 struct inode
 {
     uint8_t type;
@@ -62,40 +65,19 @@ struct im_fs_index_table
 
 struct file_ops
 {
-    size_t (*read)(void *buffer, size_t len);
-    void (*write)(const void *buffer, size_t len);
-    int (*ioctl)(unsigned long request, void *arg);
-    int (*close)(void);
+    size_t (*read)(file_t* f, void *buffer, size_t len);
+    void (*write)(file_t* f, const void *buffer, size_t len);
+    int (*ioctl)(file_t* f, unsigned long request, void *arg);
+    int (*close)(file_t* f);
 };
-typedef struct file_ops file_ops_t;
-
-// struct vnode_ops
-// {
-//     size_t (*read)(void *buffer, size_t len);
-//     void (*write)(const void *buffer, size_t len);
-//     int (*ioctl)(unsigned long request, void *arg);
-//     int (*close)(void);
-// };
-// typedef struct vnode_ops vnode_ops_t;
-
-// struct vnode
-// {
-//     const char *name;
-//     struct vnode *parent;
-//     struct vnode *children;
-//     struct vnode *next_sibling;
-//     struct vnode_ops *ops;
-// };
-// typedef struct vnode vnode_t;
 
 struct file
 {
     char name[28];
     file_ops_t ops;
-    void* data;
-    size_t size;
+    inode_t inode;
+    uint32_t off;
 };
-typedef struct file file_t;
 
 struct tar_header
 {

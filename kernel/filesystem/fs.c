@@ -385,47 +385,6 @@ static void next_dir_name(char* buffer, uint32_t* cursor, size_t* size, char* pa
     *cursor = *cursor + 1;
 }
 
-static file_t* search_on_disk(char* path)
-{
-    char* target_file = extract_filename(path);
-    char dirname[512];
-    uint32_t cursor = 1;
-    uint32_t size = 0;
-    inode_t root_inode;
-    read_inode(global_root_inode_num, &root_inode);
-    inode_t current_inode = root_inode;
-    struct dir_entry* entries = (struct dir_entry*)read_inode_data(current_inode);
-    next_dir_name(dirname, &cursor, &size, path);
-    while (1)
-    {
-        for (uint16_t i = 0; i < current_inode.size / sizeof(struct dir_entry); i++)
-        {
-            struct dir_entry entry = entries[i];
-            if (kstrcmp(entry.name, dirname, strlen(entry.name)) == 0)
-            {
-                if (kstrcmp(dirname, target_file, strlen(target_file)) == 0)
-                {
-                    kfree(entries);
-
-                    read_inode(entry.inode_number, &current_inode);
-                    uint8_t* file_bytes = read_inode_data(current_inode);
-                    file_t* file = kmalloc(sizeof(file_t));
-                    file->data = file_bytes;
-                    file->size = current_inode.size;
-                    kmemcpy(file->name, entry.name, strlen(entry.name));
-                    return file;
-                }
-
-                read_inode(entry.inode_number, &current_inode);
-                kfree(entries);
-                entries = (struct dir_entry*)read_inode_data(current_inode);
-                break;
-            }
-        }
-        next_dir_name(dirname, &cursor, &size, path);
-    }
-}
-
 static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
         uint8_t* file_data, size_t file_size, struct im_fs* inmemory_fs, struct im_fs_index_table** head)
 {
@@ -561,7 +520,9 @@ void persist_inmemory_fs(struct im_fs* inmemory_fs)
 
 void init_fs(multiboot_info_t* mbi)
 {
-    // TODO: check possible error
+    // TODO: check possible error:
+    // - disk
+    // - wrong paths
     if (check_magic()) return;
     write_magic();
     init_disk();
@@ -576,6 +537,98 @@ void init_fs(multiboot_info_t* mbi)
     free_index_table(head);
 
     init_devices(devices);
+}
+
+static size_t fs_read(file_t* f, void* buffer, size_t size)
+{
+    uint32_t sector_index = ((f->off + 511) / 512) - 1;
+    uint32_t sector_total = (size + 511) / 512;
+    size_t read_bytes = 0;
+    for (uint32_t i = 0; i < sector_total; i++)
+    {
+        uint8_t sector_buffer[512];
+        disk_read(DATA_OFFSET + f->inode.sector[sector_index], 1, (uint16_t*)sector_buffer);
+        if (i == 0)
+        {
+            if (size >= 512 - f->off)
+            {
+                kmemcpy(buffer, &sector_buffer[f->off], 512 - f->off);
+                read_bytes += 512 - f->off;
+            }
+            else
+            {
+                kmemcpy(buffer, &sector_buffer[f->off], size);
+                read_bytes += size;
+            }
+        }
+        else
+        {
+            if (size - read_bytes >= 512)
+            {
+                kmemcpy(buffer + read_bytes, sector_buffer, 512);
+                read_bytes += 512;
+            }
+            else
+            {
+                kmemcpy(buffer + read_bytes, sector_buffer, size - read_bytes);
+                read_bytes += size - read_bytes;
+            }
+        }
+        sector_index++;
+    }
+
+    return read_bytes;
+}
+
+static file_ops_t fs_ops(void)
+{
+    return (file_ops_t){
+        .read = fs_read,
+        .write = NULL,
+        .ioctl = NULL,
+        .close = NULL
+    };
+}
+
+static file_t* search_on_disk(char* path)
+{
+    char* target_file = extract_filename(path);
+    char dirname[512];
+    uint32_t cursor = 1;
+    uint32_t size = 0;
+    inode_t root_inode;
+    read_inode(global_root_inode_num, &root_inode);
+    inode_t current_inode = root_inode;
+    struct dir_entry* entries = (struct dir_entry*)read_inode_data(current_inode);
+    next_dir_name(dirname, &cursor, &size, path);
+    while (1)
+    {
+        for (uint16_t i = 0; i < current_inode.size / sizeof(struct dir_entry); i++)
+        {
+            struct dir_entry entry = entries[i];
+            if (kstrcmp(entry.name, dirname, strlen(entry.name)) == 0)
+            {
+                if (kstrcmp(dirname, target_file, strlen(target_file)) == 0)
+                {
+                    read_inode(entry.inode_number, &current_inode);
+                    file_t* file = kmalloc(sizeof(file_t));
+                    kmemcpy(file->name, entry.name, strlen(entry.name));
+                    file->ops = fs_ops();
+                    file->inode = current_inode;
+                    file->off = 0;
+
+                    kfree(entries);
+                    return file;
+                }
+
+                read_inode(entry.inode_number, &current_inode);
+                kfree(entries);
+                entries = (struct dir_entry*)read_inode_data(current_inode);
+                break;
+            }
+        }
+        next_dir_name(dirname, &cursor, &size, path);
+    }
 }
 
 file_t* open_file(char* path)

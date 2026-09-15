@@ -237,6 +237,7 @@ static void reaper_task_loop(void)
 
             for (size_t i = 0; i < dead_task->total_fds; i++)
             {
+                // TODO: fix this
                 kfree(dead_task->fds[i]);
             }
 
