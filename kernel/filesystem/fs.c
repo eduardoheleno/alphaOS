@@ -376,7 +376,7 @@ static file_t* lookup_devices(char* name)
 static void next_dir_name(char* buffer, uint32_t* cursor, size_t* size, char* path)
 {
     *size = 0;
-    while (path[*cursor] != '/')
+    while (path[*cursor] != '/' && path[*cursor] != '\0')
     {
         buffer[*size] = path[*cursor];
         *size = *size + 1;
@@ -523,6 +523,7 @@ void init_fs(multiboot_info_t* mbi)
     // TODO: check possible error:
     // - disk
     // - wrong paths
+    init_devices(devices);
     if (check_magic()) return;
     write_magic();
     init_disk();
@@ -535,8 +536,6 @@ void init_fs(multiboot_info_t* mbi)
     init_vfs((multiboot_module_t*)mbi->mods_addr, inmemory_fs, &head);
     persist_inmemory_fs(inmemory_fs);
     free_index_table(head);
-
-    init_devices(devices);
 }
 
 static size_t fs_read(file_t* f, void* buffer, size_t size)
@@ -640,6 +639,15 @@ static file_t* search_on_disk(char* path)
         }
         next_dir_name(dirname, &cursor, &size, path);
     }
+}
+
+size_t load_in_memory(char* path, uint8_t** program_buffer)
+{
+    file_t* f = search_on_disk(path);
+    size_t program_size = f->inode.size;
+    *program_buffer = read_inode_data(f->inode);
+    kfree(f);
+    return program_size;
 }
 
 file_t* open_file(char* path)

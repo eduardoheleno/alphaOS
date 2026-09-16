@@ -5,8 +5,6 @@
 #include "tty.h"
 #include <stddef.h>
 
-multiboot_module_t userspace_module;
-
 extern char _kernel_start;
 extern uintptr_t kernel_page_directory[];
 
@@ -288,7 +286,7 @@ static void unmmap(uintptr_t virt_addr, size_t npages)
     }
 }
 
-uintptr_t mmap_ring3(void)
+uintptr_t mmap_ring3(uint8_t* program_buffer, size_t size)
 {
     uintptr_t page_table_entry_phys_addr1 = pmm_alloc(1);
     uintptr_t *tmp_virt_page_table_entry1 = map_tmp_page(page_table_entry_phys_addr1);
@@ -298,11 +296,11 @@ uintptr_t mmap_ring3(void)
     }
 
     uint8_t *user_code_virt_addr = (uint8_t*)tmp_virt_page_table_entry1;
-    uint8_t *user_code2 = (uint8_t*)((uint32_t)userspace_module.mod_start + KERNEL_BASE);
-    uint16_t limit = userspace_module.mod_end - userspace_module.mod_start;
-    for (uint16_t i = 0; i < limit; i++)
+    // uint8_t *user_code2 = (uint8_t*)((uint32_t)userspace_module.mod_start + KERNEL_BASE);
+    // uint16_t limit = userspace_module.mod_end - userspace_module.mod_start;
+    for (uint16_t i = 0; i < size; i++)
     {
-        user_code_virt_addr[i] = user_code2[i];
+        user_code_virt_addr[i] = program_buffer[i];
     }
     unmap_tmp_page();
 

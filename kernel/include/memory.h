@@ -81,7 +81,7 @@ void* kmemcpy(void* to, void* from, size_t size);
 void* kmemset(void* ptr, int x, size_t n);
 int kstrcmp(char* ptr1, char* ptr2, size_t num);
 
-uintptr_t mmap_ring3(void);
+uintptr_t mmap_ring3(uint8_t* program_buffer, size_t size);
 void unmmap_ring3(uintptr_t page_directory_phys_addr);
 
 #endif

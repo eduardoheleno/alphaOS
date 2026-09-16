@@ -153,6 +153,45 @@ static void task_trampoline(void)
     task_exit();
 }
 
+task_t* create_ring3_task(char* path)
+{
+    task_t *new_task = kmalloc(sizeof(task_t));
+    new_task->context.edi = 0;
+    new_task->context.esi = 0;
+    new_task->context.ebp = 0;
+    new_task->context.ebx = 0;
+    new_task->context.edx = 0;
+    new_task->context.ecx = 0;
+    new_task->context.eax = 0;
+
+    new_task->fds[FD_STDIN] = open_file("/dev/tty");
+    new_task->fds[FD_STDOUT] = open_file("/dev/tty");
+    new_task->fds[FD_STDERR] = open_file("/dev/tty");
+    new_task->total_fds = 3;
+
+    new_task->pid = next_pid++;
+    new_task->status = TASK_READY;
+    new_task->type = RING3_TASK;
+    new_task->context.eflags = 0x202;
+
+    void *kernel_stack = kmalloc(PAGE_SIZE);
+    new_task->ring0_stack_base = kernel_stack;
+    new_task->ring0_stack_size = PAGE_SIZE;
+
+    new_task->context.cs = USER_CS;
+    new_task->context.ds = USER_DS;
+
+    uint8_t* program_buffer = NULL;
+    size_t program_size = load_in_memory(path, &program_buffer);
+    new_task->cr3 = mmap_ring3(program_buffer, program_size);
+    new_task->ring3_stack_base = (void*)USER_STACK;
+    new_task->ring3_stack_size = PAGE_SIZE;
+    new_task->context.esp = USER_STACK + PAGE_SIZE;
+    new_task->context.eip = USER_CODE;
+
+    return new_task;
+}
+
 static task_t* create_task(void *entry, task_type_t type)
 {
     task_t *new_task = kmalloc(sizeof(task_t));
@@ -191,7 +230,7 @@ static task_t* create_task(void *entry, task_type_t type)
         case RING3_TASK:
             new_task->context.cs = USER_CS;
             new_task->context.ds = USER_DS;
-            new_task->cr3 = mmap_ring3();
+            // new_task->cr3 = mmap_ring3();
             new_task->ring3_stack_base = (void*)USER_STACK;
             new_task->ring3_stack_size = PAGE_SIZE;
             new_task->context.esp = USER_STACK + PAGE_SIZE;
@@ -204,7 +243,8 @@ static task_t* create_task(void *entry, task_type_t type)
 
 void enqueue_task(void *entry, task_type_t type)
 {
-    task_t *new_task = create_task(entry, type);
+    task_t* new_task = create_ring3_task("/bin/hello");
+    // task_t *new_task = create_task(entry, type);
     task_t *tmp_task = current_task;
     while (tmp_task->next != current_task)
     {
