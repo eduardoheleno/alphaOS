@@ -68,6 +68,11 @@ void printf(const char *s, ...)
                     write(1, string_param, char_len);
                     i++;
                     break;
+                case 'c':
+                    char c = (char)va_arg(ap, int);
+                    write(1, &c, 1);
+                    i++;
+                    break;
             }
         }
         else

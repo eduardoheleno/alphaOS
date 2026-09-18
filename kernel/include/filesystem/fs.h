@@ -65,7 +65,7 @@ struct im_fs_index_table
 
 struct file_ops
 {
-    size_t (*read)(file_t* f, void *buffer, size_t len);
+    int (*read)(file_t* f, void *buffer, size_t len);
     void (*write)(file_t* f, const void *buffer, size_t len);
     int (*ioctl)(file_t* f, unsigned long request, void *arg);
     int (*close)(file_t* f);

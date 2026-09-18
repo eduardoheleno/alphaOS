@@ -153,7 +153,7 @@ static void task_trampoline(void)
     task_exit();
 }
 
-task_t* create_ring3_task(char* path)
+task_t* create_ring3_task(const char *path)
 {
     task_t *new_task = kmalloc(sizeof(task_t));
     new_task->context.edi = 0;
@@ -241,9 +241,9 @@ static task_t* create_task(void *entry, task_type_t type)
     return new_task;
 }
 
-void enqueue_task(void *entry, task_type_t type)
+void enqueue_task(const char *path)
 {
-    task_t* new_task = create_ring3_task("/bin/hello");
+    task_t *new_task = create_ring3_task(path);
     // task_t *new_task = create_task(entry, type);
     task_t *tmp_task = current_task;
     while (tmp_task->next != current_task)

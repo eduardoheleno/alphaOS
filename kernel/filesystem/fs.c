@@ -42,7 +42,7 @@ static void init_dbmap(void)
 
 static void init_iblock(void)
 {
-    uint8_t* iblock_area = kmalloc(20480);
+    uint8_t *iblock_area = kmalloc(20480);
     kmemset(iblock_area, 0, 20480);
     disk_write(IBLOCK_OFFSET, 40, iblock_area);
     kfree(iblock_area);
@@ -71,13 +71,13 @@ static int alloc_inode_num(void)
     return -1;
 }
 
-static void write_inode_data(inode_t* inode, uint8_t* data, size_t size)
+static void write_inode_data(inode_t *inode, uint8_t *data, size_t size)
 {
     uint8_t data_bmap[4096];
     kmemset(data_bmap, 0, sizeof(data_bmap));
     disk_read(17, 8, (uint16_t*)data_bmap);
 
-    uint8_t* data_buffer = kmalloc(512 * inode->sectors);
+    uint8_t *data_buffer = kmalloc(512 * inode->sectors);
     kmemset(data_buffer, 0, 512 * inode->sectors);
     kmemcpy(data_buffer, data, size);
     uint32_t sectors_count = 0;
@@ -104,7 +104,7 @@ static void write_inode_data(inode_t* inode, uint8_t* data, size_t size)
 
 static uint8_t* read_inode_data(inode_t inode)
 {
-    uint8_t* data_buffer = kmalloc(512 * inode.sectors);
+    uint8_t *data_buffer = kmalloc(512 * inode.sectors);
     for (uint32_t i = 0; i < inode.sectors; i++)
     {
         disk_read(DATA_OFFSET + inode.sector[i], 1, (uint16_t*)&data_buffer[i * 512]);
@@ -124,7 +124,7 @@ static void write_inode(inode_t inode, uint32_t inode_num)
     disk_write(IBLOCK_OFFSET + inode_sector, 1, sector_buffer);
 }
 
-static void read_inode(uint32_t inode_num, inode_t* inode_buffer)
+static void read_inode(uint32_t inode_num, inode_t *inode_buffer)
 {
     uint32_t inode_sector = inode_num / 8;
     uint32_t inode_offset = inode_num % 8;
@@ -145,16 +145,16 @@ static uint8_t tar_zero_block(const uint8_t *block)
     return 1;
 }
 
-static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, int parent_num,
-        struct im_fs* inmemory_fs, struct im_fs_index_table** head)
+static void add_dir_inode_im_fs(char *name, char *parent_name, int inode_num, int parent_num,
+        struct im_fs *inmemory_fs, struct im_fs_index_table **head)
 {
-    struct im_fs_index_table* tmp = *head;
-    inode_t* inode = kmalloc(sizeof(inode_t));
+    struct im_fs_index_table *tmp = *head;
+    inode_t *inode = kmalloc(sizeof(inode_t));
     inode->type = DIR_TYPE;
 
     if (tmp == NULL)
     {
-        struct im_fs_index_table* index_entry = kmalloc(sizeof(struct im_fs_index_table));
+        struct im_fs_index_table *index_entry = kmalloc(sizeof(struct im_fs_index_table));
         kmemcpy(index_entry->name, name, 28);
         index_entry->index = 0;
         index_entry->next = NULL;
@@ -172,7 +172,7 @@ static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, in
     }
 
     uint32_t parent_index = 0;
-    struct im_fs_index_table* buf = *head;
+    struct im_fs_index_table *buf = *head;
     while (buf != NULL)
     {
         if (kstrcmp(buf->name, parent_name, strlen(buf->name)) == 0)
@@ -188,7 +188,7 @@ static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, in
         tmp = tmp->next;
     }
 
-    struct im_fs_index_table* index_entry = kmalloc(sizeof(struct im_fs_index_table));
+    struct im_fs_index_table *index_entry = kmalloc(sizeof(struct im_fs_index_table));
     kmemcpy(index_entry->name, name, 28);
     index_entry->index = tmp->index + 1;
     index_entry->next = NULL;
@@ -203,7 +203,7 @@ static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, in
     kmemcpy(inmemory_fs[index_entry->index].entries[1].name, "..", 2);
     inmemory_fs[index_entry->index].entries_count = 2;
 
-    struct imdir_entry* entries = inmemory_fs[parent_index].entries;
+    struct imdir_entry *entries = inmemory_fs[parent_index].entries;
     uint32_t entries_count = inmemory_fs[parent_index].entries_count;
     kmemcpy(entries[entries_count].name, name, 28);
     entries[entries_count].type = DIR_TYPE;
@@ -212,7 +212,7 @@ static void add_dir_inode_im_fs(char* name, char* parent_name, int inode_num, in
     return;
 }
 
-static void init_im_fs(struct im_fs* inmemory_fs, struct im_fs_index_table** head)
+static void init_im_fs(struct im_fs *inmemory_fs, struct im_fs_index_table **head)
 {
     int inode_number = alloc_inode_num();
 
@@ -220,8 +220,8 @@ static void init_im_fs(struct im_fs* inmemory_fs, struct im_fs_index_table** hea
     global_root_inode_num = inode_number;
 }
 
-static int lookup_parent_inode_num(char* file_path, struct im_fs* inmemory_fs,
-        struct im_fs_index_table* head)
+static int lookup_parent_inode_num(char *file_path, struct im_fs *inmemory_fs,
+        struct im_fs_index_table *head)
 {
     int first_slash = 0;
     for (int i = strlen(file_path) - 2; i >= 0; i--)
@@ -257,9 +257,9 @@ static int lookup_parent_inode_num(char* file_path, struct im_fs* inmemory_fs,
     return -1;
 }
 
-static char* extract_dirname(char* file_path)
+static char* extract_dirname(char *file_path)
 {
-    char* dirname = kmalloc(28);
+    char *dirname = kmalloc(28);
     for (int i = strlen(file_path) - 2; i >= 0; i--)
     {
         if (file_path[i] == '/')
@@ -278,9 +278,9 @@ static char* extract_dirname(char* file_path)
     return NULL;
 }
 
-static char* extract_filename(char* file_path)
+static char* extract_filename(char *file_path)
 {
-    char* filename = kmalloc(28);
+    char *filename = kmalloc(28);
     for (int i = strlen(file_path) - 1; i >= 0; i--)
     {
         if (file_path[i] == '/')
@@ -299,9 +299,9 @@ static char* extract_filename(char* file_path)
     return NULL;
 }
 
-static char* extract_parent_name(char* file_path)
+static char* extract_parent_name(char *file_path)
 {
-    char* parent_name = kmalloc(28);
+    char *parent_name = kmalloc(28);
     int first_slash = 0;
     for (int i = strlen(file_path) - 1; i >= 0; i--)
     {
@@ -326,9 +326,9 @@ static char* extract_parent_name(char* file_path)
     return NULL;
 }
 
-static char* extract_parent_name2(char* file_path)
+static char* extract_parent_name2(char *file_path)
 {
-    char* parent_name = kmalloc(28);
+    char *parent_name = kmalloc(28);
     int first_slash = 0;
     for (int i = strlen(file_path) - 2; i >= 0; i--)
     {
@@ -359,11 +359,11 @@ static char* extract_parent_name2(char* file_path)
     return NULL;
 }
 
-static file_t* lookup_devices(char* name)
+static file_t* lookup_devices(char *name)
 {
     for (uint16_t i = 0; i < TOTAL_DEVICES; i++)
     {
-        char* device_name = devices[i].name;
+        char *device_name = devices[i].name;
         if (kstrcmp(device_name, name, strlen(device_name)) == 0)
         {
             return &devices[i];
@@ -373,7 +373,7 @@ static file_t* lookup_devices(char* name)
     return NULL;
 }
 
-static void next_dir_name(char* buffer, uint32_t* cursor, size_t* size, char* path)
+static void next_dir_name(char *buffer, uint32_t *cursor, size_t *size, char *path)
 {
     *size = 0;
     while (path[*cursor] != '/' && path[*cursor] != '\0')
@@ -385,10 +385,10 @@ static void next_dir_name(char* buffer, uint32_t* cursor, size_t* size, char* pa
     *cursor = *cursor + 1;
 }
 
-static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
-        uint8_t* file_data, size_t file_size, struct im_fs* inmemory_fs, struct im_fs_index_table** head)
+static void add_file_inode_im_fs(char *name, char *parent_name, int inode_num,
+        uint8_t *file_data, size_t file_size, struct im_fs *inmemory_fs, struct im_fs_index_table **head)
 {
-    struct im_fs_index_table* tmp = *head;
+    struct im_fs_index_table *tmp = *head;
     int index = 0;
     while (tmp != NULL)
     {
@@ -400,7 +400,7 @@ static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
         tmp = tmp->next;
     }
 
-    struct imdir_entry* entries = inmemory_fs[index].entries;
+    struct imdir_entry *entries = inmemory_fs[index].entries;
     uint32_t entries_count = inmemory_fs[index].entries_count;
     kmemcpy(entries[entries_count].name, name, 28);
 
@@ -411,8 +411,8 @@ static void add_file_inode_im_fs(char* name, char* parent_name, int inode_num,
     inmemory_fs[index].entries_count = entries_count + 1;
 }
 
-static void init_vfs(multiboot_module_t* mbm,
-        struct im_fs inmemory_fs[28], struct im_fs_index_table** head)
+static void init_vfs(multiboot_module_t *mbm,
+        struct im_fs inmemory_fs[28], struct im_fs_index_table **head)
 {
     init_im_fs(inmemory_fs, head);
 
@@ -452,10 +452,10 @@ static void init_vfs(multiboot_module_t* mbm,
 
         if (th->file_type == TAR_DIR_TYPE)
         {
-            char* dir_name = extract_dirname(th->file_path);
+            char *dir_name = extract_dirname(th->file_path);
             int inode_num = alloc_inode_num();
             int parent_num = lookup_parent_inode_num(th->file_path, inmemory_fs, *head);
-            char* parent_name = extract_parent_name2(th->file_path);
+            char *parent_name = extract_parent_name2(th->file_path);
             add_dir_inode_im_fs(dir_name, parent_name, inode_num, parent_num, inmemory_fs, head);
             kfree(dir_name);
             kfree(parent_name);
@@ -463,8 +463,8 @@ static void init_vfs(multiboot_module_t* mbm,
         else if (th->file_type == TAR_FILE_TYPE)
         {
             int inode_num = alloc_inode_num();
-            char* filename = extract_filename(th->file_path);
-            char* parent_name = extract_parent_name(th->file_path);
+            char *filename = extract_filename(th->file_path);
+            char *parent_name = extract_parent_name(th->file_path);
             add_file_inode_im_fs(filename, parent_name, inode_num, file_data, file_size, inmemory_fs, head);
             kfree(filename);
             kfree(parent_name);
@@ -473,20 +473,20 @@ static void init_vfs(multiboot_module_t* mbm,
     }
 }
 
-void free_index_table(struct im_fs_index_table* head)
+void free_index_table(struct im_fs_index_table *head)
 {
     while (head != NULL)
     {
-        struct im_fs_index_table* next = head->next;
+        struct im_fs_index_table *next = head->next;
         kfree(head);
         head = next;
     }
 }
 
-void persist_inmemory_fs(struct im_fs* inmemory_fs)
+void persist_inmemory_fs(struct im_fs *inmemory_fs)
 {
     uint32_t cursor = 0;
-    inode_t* dir_inode = inmemory_fs[cursor].inode;
+    inode_t *dir_inode = inmemory_fs[cursor].inode;
     while (dir_inode != NULL)
     {
         struct im_fs im_file = inmemory_fs[cursor];
@@ -518,7 +518,7 @@ void persist_inmemory_fs(struct im_fs* inmemory_fs)
     }
 }
 
-void init_fs(multiboot_info_t* mbi)
+void init_fs(multiboot_info_t *mbi)
 {
     // TODO: check possible error:
     // - disk
@@ -531,14 +531,14 @@ void init_fs(multiboot_info_t* mbi)
     init_dbmap();
     init_iblock();
 
-    struct im_fs* inmemory_fs = kmalloc(sizeof(struct im_fs) * 28);
-    struct im_fs_index_table* head = NULL;
+    struct im_fs *inmemory_fs = kmalloc(sizeof(struct im_fs) * 28);
+    struct im_fs_index_table *head = NULL;
     init_vfs((multiboot_module_t*)mbi->mods_addr, inmemory_fs, &head);
     persist_inmemory_fs(inmemory_fs);
     free_index_table(head);
 }
 
-static size_t fs_read(file_t* f, void* buffer, size_t size)
+static int fs_read(file_t *f, void *buffer, size_t size)
 {
     uint32_t target_size;
     if (f->inode.size - f->off <= size)
@@ -600,16 +600,16 @@ static file_ops_t fs_ops(void)
     };
 }
 
-static file_t* search_on_disk(char* path)
+static file_t* search_on_disk(char *path)
 {
-    char* target_file = extract_filename(path);
+    char *target_file = extract_filename(path);
     char dirname[512];
     uint32_t cursor = 1;
     uint32_t size = 0;
     inode_t root_inode;
     read_inode(global_root_inode_num, &root_inode);
     inode_t current_inode = root_inode;
-    struct dir_entry* entries = (struct dir_entry*)read_inode_data(current_inode);
+    struct dir_entry *entries = (struct dir_entry*)read_inode_data(current_inode);
     next_dir_name(dirname, &cursor, &size, path);
     while (1)
     {
@@ -621,7 +621,7 @@ static file_t* search_on_disk(char* path)
                 if (kstrcmp(dirname, target_file, strlen(target_file)) == 0)
                 {
                     read_inode(entry.inode_number, &current_inode);
-                    file_t* file = kmalloc(sizeof(file_t));
+                    file_t *file = kmalloc(sizeof(file_t));
                     kmemcpy(file->name, entry.name, strlen(entry.name));
                     file->ops = fs_ops();
                     file->inode = current_inode;
@@ -641,21 +641,21 @@ static file_t* search_on_disk(char* path)
     }
 }
 
-size_t load_in_memory(char* path, uint8_t** program_buffer)
+size_t load_in_memory(char *path, uint8_t **program_buffer)
 {
-    file_t* f = search_on_disk(path);
+    file_t *f = search_on_disk(path);
     size_t program_size = f->inode.size;
     *program_buffer = read_inode_data(f->inode);
     kfree(f);
     return program_size;
 }
 
-file_t* open_file(char* path)
+file_t* open_file(char *path)
 {
     if (kstrcmp(path, "/dev", 4) == 0)
     {
         char* filename = extract_filename(path);
-        file_t* device = lookup_devices(filename);
+        file_t *device = lookup_devices(filename);
         kfree(filename);
         return device;
     }

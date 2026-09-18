@@ -8,5 +8,6 @@ static const int stdout = 1;
 
 void printf(const char *s, ...);
 void fgets(char *buffer, size_t len, int fd);
+int getch(void);
 
 #endif

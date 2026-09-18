@@ -50,14 +50,16 @@ void syscall_handler(cpu_task_state_t *state)
             task_exit();
             break;
         case SYS_READ:
-            if (stdin_buffer_has_line() < 1) await_stdin(state);
-            state->eax = sys_read(state->ebx, (char*)state->ecx, state->edx);
+            state->eax = sys_read(state, state->ebx, (char*)state->ecx, state->edx);
             break;
         case SYS_WRITE:
             state->eax = sys_write(state->ebx, (char*)state->ecx, state->edx);
             break;
         case SYS_MMAP:
             state->eax = sys_mmap((void*)state->ebx, state->ecx);
+            break;
+        case SYS_EXECVE:
+            state->eax = sys_execve((const char*)state->ebx);
             break;
         case SYS_IOCTL:
             state->eax = sys_ioctl(state->ebx, state->ecx, (void*)state->edx);

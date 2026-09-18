@@ -55,8 +55,7 @@ struct task
     cpu_task_state_t context;
     uintptr_t cr3;
 
-    char* cwd;
-    // uint32_t cwd;
+    char *cwd;
 
     file_t *fds[MAX_FD_PER_PROCESS];
     size_t total_fds;
@@ -75,12 +74,12 @@ struct task
 typedef struct task task_t;
 
 void init_scheduler(void);
-void enqueue_task(void *entry, task_type_t type);
+void enqueue_task(const char *path);
 void scheduler_tick(cpu_task_state_t *state);
 void task_exit(void);
 void await_stdin(cpu_task_state_t *state);
 void wake_stdin_task(void);
 
-task_t* create_ring3_task(char* path);
+task_t* create_ring3_task(const char *path);
 
 #endif

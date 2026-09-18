@@ -49,12 +49,7 @@ void kernel_main(
 
     unmap_identity();
     reload_cr3();
-
-    file_t* f = open_file("/bin/test.txt");
-    void* test = kmalloc(2000);
-    debug_int(f->ops.read(f, test, f->inode.size));
-    terminal_writestring(test);
-
+    
     for (;;) 
     {
         halt();

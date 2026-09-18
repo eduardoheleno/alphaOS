@@ -35,6 +35,7 @@ C_SRCS := \
 	syscall/read.c \
 	syscall/write.c \
 	syscall/ioctl.c \
+	syscall/execve.c \
 	graphics/framebuffer.c \
 	graphics/font.c
 
@@ -49,13 +50,15 @@ ASM_OBJS := $(ASM_SRCS:%.s=$(BUILD_DIR)/%_asm.o)
 
 OBJS := $(ASM_OBJS) $(C_OBJS) ../drivers/build/keyboard.o ../initrd/fonts/font.o
 
-.PHONY: all run clean
+.PHONY: all initrd clean
+
+all: $(TARGET)
+	cp $(TARGET) ../iso/boot/myos
+	$(MAKE) initrd
+	i686-elf-grub-mkrescue -o ../myos.iso ../iso
 
 $(TARGET): $(OBJS) linker.ld
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
-	cp $@ ../iso/boot/myos
-	cp ../userspace/build/hello.bin ../initrd/bin/hello
-	i686-elf-grub-mkrescue -o ../myos.iso ../iso
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
@@ -66,9 +69,10 @@ $(BUILD_DIR)/%_asm.o: %.s
 	$(AS) $< -o $@
 
 initrd:
-	tar --format=ustar -cf ./build/initrd.img -C ../initrd .
-	cp ./build/initrd.img ../iso/boot/initrd.img
+	cp ../userspace/build/hello.bin ../initrd/bin/hello
+	cp ../userspace/build/test.bin ../initrd/bin/test
+	tar --format=ustar -cf ../iso/boot/initrd.img -C ../initrd .
 
 clean:
-	rm ../myos.iso
+	rm -rf ../myos.iso ../iso/boot/initrd.img
 	rm -rf $(BUILD_DIR)

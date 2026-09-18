@@ -18,16 +18,23 @@ HELLO_OBJS := $(HELLO_SRCS:%.c=$(BUILD_DIR)/%.o)
 HELLO_ELF := $(BUILD_DIR)/hello.elf
 HELLO_PROGRAM := $(BUILD_DIR)/hello.bin
 
+TEST_SRCS := ./programs/test.c
+TEST_OBJS := $(TEST_SRCS:%.c=$(BUILD_DIR)/%.o)
+TEST_ELF := $(BUILD_DIR)/test.elf
+TEST_PROGRAM := $(BUILD_DIR)/test.bin
+
 LIBC_SRCS := \
 		  ./libc/unistd/exit.c \
 		  ./libc/unistd/read.c \
 		  ./libc/unistd/write.c \
 		  ./libc/stdio/printf.c \
 		  ./libc/stdio/fgets.c \
+		  ./libc/stdio/getch.c \
 		  ./libc/string.c \
 		  ./libc/ioctl.c \
 		  ./libc/mmap.c \
-		  ./libc/munmap.c
+		  ./libc/munmap.c \
+		  ./libc/execve.c
 
 STDLIB_SRCS := \
 		  ./stdlib/malloc.c \
@@ -43,7 +50,7 @@ C_OBJS := $(LIBC_OBJS) $(STDLIB_OBJS) $(CRT_OBJS)
 
 .PHONY: all clean
 
-all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(HELLO_PROGRAM)
+all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(HELLO_PROGRAM) $(TEST_PROGRAM) ../disk.img
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
@@ -61,5 +68,17 @@ $(HELLO_PROGRAM): $(HELLO_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(HELLO_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(HELLO_ELF)
 	$(OBJCOPY) -O binary $(HELLO_ELF) $@
 
+$(TEST_PROGRAM): $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
+	mkdir -p $(BUILD_DIR)/programs
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(TEST_SRCS) -o $(TEST_OBJS)
+	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(TEST_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(TEST_ELF)
+	$(OBJCOPY) -O binary $(TEST_ELF) $@
+
+../disk.img: $(HELLO_SRCS) $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
+	rm -rf $@
+	qemu-img create -f raw $@ 64M
+
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf ../initrd/bin/test
+	rm -rf ../initrd/bin/hello
