@@ -56,3 +56,14 @@ void put_pixel(uint32_t x, uint32_t y, uint32_t color)
     uint32_t* row = (uint32_t*)(FRAMEBUFFER_ADDR + y * framebuffer_pitch);
     row[x] = color;
 }
+
+void clear_framebuffer(void)
+{
+    for (uint32_t y = 0; y < framebuffer_height; y++)
+    {
+        for (uint32_t x = 0; x < framebuffer_width; x++)
+        {
+            put_pixel(x, y, 0x000000);
+        }
+    }
+}

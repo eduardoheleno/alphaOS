@@ -13,10 +13,10 @@ CPPFLAGS := -I ./libc/include \
 LIBC_LIB := $(BUILD_DIR)/libc.a
 STDLIB_LIB := $(BUILD_DIR)/stdlib.a
 
-HELLO_SRCS := ./programs/hello.c
-HELLO_OBJS := $(HELLO_SRCS:%.c=$(BUILD_DIR)/%.o)
-HELLO_ELF := $(BUILD_DIR)/hello.elf
-HELLO_PROGRAM := $(BUILD_DIR)/hello.bin
+SHELL_SRCS := ./programs/shell.c
+SHELL_OBJS := $(SHELL_SRCS:%.c=$(BUILD_DIR)/%.o)
+SHELL_ELF := $(BUILD_DIR)/shell.elf
+SHELL_PROGRAM := $(BUILD_DIR)/shell.bin
 
 TEST_SRCS := ./programs/test.c
 TEST_OBJS := $(TEST_SRCS:%.c=$(BUILD_DIR)/%.o)
@@ -50,7 +50,7 @@ C_OBJS := $(LIBC_OBJS) $(STDLIB_OBJS) $(CRT_OBJS)
 
 .PHONY: all clean
 
-all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(HELLO_PROGRAM) $(TEST_PROGRAM) ../disk.img
+all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(SHELL_PROGRAM) $(TEST_PROGRAM) ../disk.img
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
@@ -62,11 +62,11 @@ $(LIBC_LIB): $(LIBC_OBJS)
 $(STDLIB_LIB): $(STDLIB_OBJS)
 	$(AR) rcs $@ $^
 
-$(HELLO_PROGRAM): $(HELLO_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
+$(SHELL_PROGRAM): $(SHELL_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	mkdir -p $(BUILD_DIR)/programs
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(HELLO_SRCS) -o $(HELLO_OBJS)
-	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(HELLO_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(HELLO_ELF)
-	$(OBJCOPY) -O binary $(HELLO_ELF) $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(SHELL_SRCS) -o $(SHELL_OBJS)
+	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(SHELL_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(SHELL_ELF)
+	$(OBJCOPY) -O binary $(SHELL_ELF) $@
 
 $(TEST_PROGRAM): $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	mkdir -p $(BUILD_DIR)/programs
@@ -74,11 +74,11 @@ $(TEST_PROGRAM): $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(TEST_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(TEST_ELF)
 	$(OBJCOPY) -O binary $(TEST_ELF) $@
 
-../disk.img: $(HELLO_SRCS) $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
+../disk.img: $(SHELL_SRCS) $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	rm -rf $@
 	qemu-img create -f raw $@ 64M
 
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf ../initrd/bin/test
-	rm -rf ../initrd/bin/hello
+	rm -rf ../initrd/bin/shell

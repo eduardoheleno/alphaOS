@@ -3,7 +3,6 @@
 #include "pic.h"
 #include "misc.h"
 #include "tty.h"
-#include "scheduler.h"
 
 static const char *scancodes[] = 
 {
@@ -37,13 +36,6 @@ void keyboard_interrupt_handler(void)
 
     if ((scancode & 0x80) == 0) 
     {
-        if (*scancodes[scancode] == 't')
-        {
-            enqueue_task("/bin/hello");
-            pic_send_eoi(1);
-            return;
-        }
-
         write_tty_buffer(*scancodes[scancode]);
     }
 

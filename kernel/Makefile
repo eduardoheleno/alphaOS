@@ -69,7 +69,7 @@ $(BUILD_DIR)/%_asm.o: %.s
 	$(AS) $< -o $@
 
 initrd:
-	cp ../userspace/build/hello.bin ../initrd/bin/hello
+	cp ../userspace/build/shell.bin ../initrd/bin/shell
 	cp ../userspace/build/test.bin ../initrd/bin/test
 	tar --format=ustar -cf ../iso/boot/initrd.img -C ../initrd .
 

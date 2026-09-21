@@ -2,6 +2,7 @@
 
 #include "memory.h"
 #include "scheduler.h"
+#include "graphics/framebuffer.h"
 #include "graphics/font.h"
 #include "misc.h"
 
@@ -12,10 +13,9 @@ static size_t terminal_column;
 static uint8_t terminal_color;
 static uint16_t* terminal_buffer = (uint16_t*)VGA_MEMORY;
 
-static int char_buffer = -1;
-// static char stdin_buffer[STDIN_BUFFER_SIZE];
-// static size_t buffer_head = 0;
-// static size_t buffer_tail = 0;
+static char stdin_buffer[STDIN_BUFFER_SIZE];
+static uint32_t buffer_head = 0;
+static uint32_t offset;
 
 static unsigned long flags;
 
@@ -39,11 +39,48 @@ static inline uint16_t vga_entry(unsigned char uc, uint8_t color)
 	return (uint16_t) uc | (uint16_t) color << 8;
 }
 
+static void terminal_clear_cursor(void)
+{
+    uint16_t x = terminal_column * DEFAULT_WIDTH_SPACING;
+    uint16_t x_origin = x;
+    uint16_t y = terminal_row * DEFAULT_HEIGHT_SPACING;
+    for (uint16_t i = 0; i < CURSOR_HEIGHT; i++)
+    {
+        for (uint16_t j = 0; j < CURSOR_WIDTH; j++)
+        {
+            put_pixel(x, y, 0x000000);
+            x++;
+        }
+        x = x_origin;
+        y++;
+    }
+}
+
+static void terminal_draw_cursor(void)
+{
+    uint16_t x = terminal_column * DEFAULT_WIDTH_SPACING;
+    uint16_t x_origin = x;
+    uint16_t y = terminal_row * DEFAULT_HEIGHT_SPACING;
+    for (uint16_t i = 0; i < CURSOR_HEIGHT; i++)
+    {
+        for (uint16_t j = 0; j < CURSOR_WIDTH; j++)
+        {
+            put_pixel(x, y, 0xAAAAAA);
+            x++;
+        }
+        x = x_origin;
+        y++;
+    }
+}
+
+
+
 void terminal_initialize(void) 
 {
 	terminal_row = 0;
 	terminal_column = 0;
 	terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    terminal_draw_cursor();
 	
 	for (size_t y = 0; y < VGA_HEIGHT; y++) 
     {
@@ -68,10 +105,12 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
 
 void terminal_putchar(char c)
 {
-    if (c == '\n') 
+    terminal_clear_cursor();
+    if (c == '\n')
     {
         terminal_row++;
         terminal_column = 0;
+        terminal_draw_cursor();
         return;
     }
 
@@ -82,6 +121,7 @@ void terminal_putchar(char c)
 		if (++terminal_row == VGA_HEIGHT)
 			terminal_row = 0;
 	}
+    terminal_draw_cursor();
 }
 
 void terminal_write(const char* data, size_t size) 
@@ -134,73 +174,27 @@ void terminal_writehex(uint32_t value)
 
 void write_tty_buffer(char c)
 {
-    char_buffer = c;
+    if (flags & ECHO_FLAG) terminal_write(&c, 1);
+    if (buffer_head == STDIN_BUFFER_SIZE - 1) buffer_head = 0;
+    stdin_buffer[buffer_head] = c;
+    buffer_head++;
     wake_stdin_task();
-    // char_buffer = NULL;
-    // *char_buffer = NULL;
-    // if (char_buffer !=)
-    // *char_buffer = c;
-    // *char_buffer = c;
-    // char_buffer = c;
-    // if (flags & ECHO_FLAG)
-    // {
-    //     terminal_write(&c, 1);
-    // }
-    //
-    // if (awaiting_stdin == NULL) return;
-    //
-    // if (buffer_tail < STDIN_BUFFER_SIZE)
-    // {
-    //     stdin_buffer[buffer_tail++] = c;
-    // }
-    // if (buffer_tail >= STDIN_BUFFER_SIZE && buffer_head == buffer_tail)
-    // {
-    //     buffer_tail = 0;
-    //     stdin_buffer[buffer_tail++] = c;
-    // }
-    // if (c == '\n') wake_stdin_task();
 }
 
-// int stdin_buffer_has_line(void)
-// {
-//     for (size_t i = buffer_head; i < buffer_tail; i++)
-//     {
-//         if (stdin_buffer[i] == '\n') return 1;
-//     }
-//     return -1;
-// }
+void terminal_clear(void)
+{
+    terminal_row = 0;
+    terminal_column = 0;
+    clear_framebuffer();
+}
 
 static int tty_read(file_t* f, void *buffer, size_t len)
 {
-    if (char_buffer < 0) return -1;
-    ((unsigned char *)buffer)[0] = (unsigned char)char_buffer;
-    char_buffer = -1;
+    if (offset == buffer_head) return -1;
+    if (offset == STDIN_BUFFER_SIZE - 1) offset = 0;
+    ((unsigned char *)buffer)[0] = (unsigned char)stdin_buffer[offset];
+    offset++;
     return 1;
-    // if (char_buffer > 0)
-    // {
-    //     debug_write("tty_read\n");
-    //     kmemcpy(buffer, (void*)char_buffer, 1);
-    //     char_buffer = -1;
-    //     return 1;
-    // }
-    //
-    // await_stdin(&current_task->context);
-    // return 0;
-    // else
-    // {
-    //     await_stdin(&current_task->context);
-    // }
-    // char_buffer = ' ';
-    // char_buffer = NULL;
-    // size_t i = 0;
-    // char *out = buffer;
-    // for (; i < len; i++)
-    // {
-    //     if (buffer_head == buffer_tail) break;
-    //     if (buffer_head >= STDIN_BUFFER_SIZE) buffer_head = 0;
-    //     out[i] = stdin_buffer[buffer_head++];
-    // }
-    // return i * sizeof(char);
 }
 
 static void tty_write(file_t* f, const void *buf, size_t len)

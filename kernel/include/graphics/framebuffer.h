@@ -7,5 +7,6 @@
 
 void init_video_memory(multiboot_info_t* mbi);
 void put_pixel(uint32_t x, uint32_t y, uint32_t color);
+void clear_framebuffer(void);
 
 #endif

@@ -10,6 +10,9 @@
 #define VGA_HEIGHT  25
 #define VGA_MEMORY  0xC03FF000
 
+#define CURSOR_WIDTH  10
+#define CURSOR_HEIGHT 20
+
 #define DEFAULT_WIDTH_SPACING  11
 #define DEFAULT_HEIGHT_SPACING 20
 
@@ -48,6 +51,7 @@ void terminal_writehex(uint32_t value);
 void terminal_write(const char* data, size_t size);
 size_t strlen(const char* str);
 void write_tty_buffer(char c);
+void terminal_clear(void);
 // int stdin_buffer_has_line(void);
 file_ops_t tty_ops(void);
 

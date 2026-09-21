@@ -36,7 +36,6 @@ void kernel_main(
      )
 {
     multiboot_info_t* mbi = (multiboot_info_t*)mbi_addr;
-
     load_psf2_font();
     init_memory(mbi, last_paged_addr, kernel_page_table_idx);
     gdt_init();
@@ -49,6 +48,9 @@ void kernel_main(
 
     unmap_identity();
     reload_cr3();
+
+    terminal_clear();
+    enqueue_task("/bin/shell");
     
     for (;;) 
     {

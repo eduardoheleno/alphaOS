@@ -4,10 +4,9 @@
 #include <stdint.h>
 
 #define PIT_BASE_FREQ     1193182
-// #define PIT_HZ         100
-#define PIT_HZ            0.0005
+#define PIT_HZ            100
 
-#define SCHEDULER_QUANTUM 5
+#define SCHEDULER_QUANTUM 1
 
 void pit_init(void);
 uint64_t uptime_seconds(void);

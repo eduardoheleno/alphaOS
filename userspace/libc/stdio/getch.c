@@ -3,7 +3,7 @@
 
 int getch(void)
 {
-    int ch;
-    read(stdin, &ch, 1);
+    unsigned char ch;
+    if (read(stdin, &ch, 1) != 1) return -1;
     return ch;
 }
