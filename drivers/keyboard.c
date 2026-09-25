@@ -6,13 +6,13 @@
 
 static const char *scancodes[] = 
 {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "\b", NULL,
     "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
     NULL, NULL, "\n", NULL,
     "a", "s", "d", "f", "g", "h", "j", "k", "l",
-    NULL, NULL, NULL, NULL, NULL,
+    ";", NULL, NULL, NULL, NULL,
     "z", "x", "c", "v", "b", "n", "m", ",",
-    NULL, NULL, NULL, NULL, NULL, " "
+    ".", "/", NULL, NULL, NULL, " "
 };
 
 // static uint8_t kybrd_ctrl_read_status()
@@ -33,6 +33,8 @@ static const char *scancodes[] =
 void keyboard_interrupt_handler(void)
 {
     uint8_t scancode = inb(0x60);
+    // debug_int(scancode);
+    // debug_write("\n");
 
     if ((scancode & 0x80) == 0) 
     {

@@ -114,6 +114,14 @@ void terminal_putchar(char c)
         return;
     }
 
+    if (c == '\b')
+    {
+        terminal_column--;
+        put_char(terminal_column * DEFAULT_WIDTH_SPACING, terminal_row * DEFAULT_HEIGHT_SPACING, 0xAAAAAA, ' ');
+        terminal_draw_cursor();
+        return;
+    }
+
     put_char(terminal_column * DEFAULT_WIDTH_SPACING, terminal_row * DEFAULT_HEIGHT_SPACING, 0xAAAAAA, c);
 	if (++terminal_column == VGA_WIDTH) 
     {

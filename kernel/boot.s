@@ -57,9 +57,9 @@ _start:
 1:
 	# Only map the kernel.
 	cmpl $_kernel_start, %esi
-	jl 3f
+	jl 3f # esi < _kernel_start
 	cmpl $_kernel_end, %esi
-	jge 4f
+	jge 4f # esi >= _kernel_end
 
 	movl %esi, %edx
 
@@ -105,7 +105,7 @@ _start:
 5:
 	# At this point, paging is fully set up and enabled.
 
-	# Reload crc3 to force a TLB flush so the changes to take effect.
+	# Reload cr3 to force a TLB flush so the changes to take effect.
 	movl %cr3, %ecx
 	movl %ecx, %cr3
 

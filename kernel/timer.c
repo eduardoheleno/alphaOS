@@ -21,7 +21,7 @@ void reset_quantum(void)
     quantum_tick = 0;
 }
 
-void timer_interrupt_handler(cpu_task_state_t *state)
+void timer_interrupt_handler(cpu_task_state_t* state)
 {
     ticks++;
     quantum_tick++;

@@ -8,14 +8,14 @@
 static idt_entry_t idt_entries[256];
 static idt_t idt;
 
-extern void *isr_stub_table[];
+extern void* isr_stub_table[];
 extern void irq0_stub(void);
 extern void irq1_stub(void);
 extern void syscall_stub(void);
 
-extern task_t *current_task;
+extern task_t* current_task;
 
-void exception_handler(cpu_exception_state_t *state)
+void exception_handler(cpu_exception_state_t* state)
 {
     switch (state->exception_code)
     {
@@ -42,7 +42,7 @@ void exception_handler(cpu_exception_state_t *state)
     }
 }
 
-void syscall_handler(cpu_task_state_t *state)
+void syscall_handler(cpu_task_state_t* state)
 {
     switch (state->eax)
     {
@@ -75,7 +75,7 @@ void syscall_handler(cpu_task_state_t *state)
 
 static void idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags)
 {
-    idt_entry_t *descriptor = &idt_entries[vector];
+    idt_entry_t* descriptor = &idt_entries[vector];
 
     descriptor->isr_low = (uint32_t)isr & 0xFFFF;
     descriptor->kernel_cs = 0x08;

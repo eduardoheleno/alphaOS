@@ -29,7 +29,7 @@
 // TODO: check memory alignment on kernel allocation
 // TODO: test entire flow of malloc
 void kernel_main(
-        uintptr_t *kernel_page_table_idx,
+        uintptr_t* kernel_page_table_idx,
         unsigned long last_paged_addr,
         unsigned long magic,
         unsigned long mbi_addr
@@ -49,6 +49,7 @@ void kernel_main(
     unmap_identity();
     reload_cr3();
 
+    // TODO: terminal_clear() shouldn't be called directly
     terminal_clear();
     enqueue_task("/bin/shell");
     

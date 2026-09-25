@@ -52,7 +52,7 @@ static task_t* next_task(void)
     return tmp_task;
 }
 
-static void load_context(cpu_task_state_t *state)
+static void load_context(cpu_task_state_t* state)
 {
     if (state != NULL)
     {
@@ -68,7 +68,8 @@ static void load_context(cpu_task_state_t *state)
     }
     task_t *ntask = next_task();
     current_task = ntask;
-    if (current_task->pid != IDLE_PID) current_task->status = TASK_RUNNING;
+    if (current_task->pid != IDLE_PID)
+        current_task->status = TASK_RUNNING;
 
     reset_quantum();
     tss.esp0 = (uint32_t)current_task->ring0_stack_base + PAGE_SIZE;
@@ -153,7 +154,7 @@ static void task_trampoline(void)
     task_exit();
 }
 
-task_t* create_ring3_task(const char *path)
+task_t* create_ring3_task(char *path)
 {
     task_t *new_task = kmalloc(sizeof(task_t));
     new_task->context.edi = 0;
@@ -174,7 +175,7 @@ task_t* create_ring3_task(const char *path)
     new_task->type = RING3_TASK;
     new_task->context.eflags = 0x202;
 
-    void *kernel_stack = kmalloc(PAGE_SIZE);
+    void* kernel_stack = kmalloc(PAGE_SIZE);
     new_task->ring0_stack_base = kernel_stack;
     new_task->ring0_stack_size = PAGE_SIZE;
 
@@ -186,7 +187,7 @@ task_t* create_ring3_task(const char *path)
     new_task->cr3 = mmap_ring3(program_buffer, program_size);
     new_task->ring3_stack_base = (void*)USER_STACK;
     new_task->ring3_stack_size = PAGE_SIZE;
-    new_task->context.esp = USER_STACK + PAGE_SIZE;
+    new_task->context.esp = USER_STACK + PAGE_SIZE - sizeof(uint32_t);
     new_task->context.eip = USER_CODE;
 
     return new_task;
@@ -213,7 +214,7 @@ static task_t* create_task(void *entry, task_type_t type)
     new_task->type = type;
     new_task->context.eflags = 0x202;
 
-    void *kernel_stack = kmalloc(PAGE_SIZE);
+    void* kernel_stack = kmalloc(PAGE_SIZE);
     new_task->ring0_stack_base = kernel_stack;
     new_task->ring0_stack_size = PAGE_SIZE;
 
@@ -241,11 +242,10 @@ static task_t* create_task(void *entry, task_type_t type)
     return new_task;
 }
 
-void enqueue_task(const char *path)
+void enqueue_task(char* path)
 {
-    task_t *new_task = create_ring3_task(path);
-    // task_t *new_task = create_task(entry, type);
-    task_t *tmp_task = current_task;
+    task_t* new_task = create_ring3_task(path);
+    task_t* tmp_task = current_task;
     while (tmp_task->next != current_task)
     {
         tmp_task = tmp_task->next;
@@ -307,7 +307,7 @@ void init_scheduler(void)
     terminal_writestring("Scheduler initialized\n");
 }
 
-void scheduler_tick(cpu_task_state_t *state)
+void scheduler_tick(cpu_task_state_t* state)
 {
     if (task_total == 0)
     {

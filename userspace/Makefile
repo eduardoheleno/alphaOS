@@ -41,11 +41,11 @@ STDLIB_SRCS := \
 		  ./stdlib/free.c
 
 CRT_SRCS := \
-		  ./crt/crt0.c
+		  ./crt/crt0.s
 
 LIBC_OBJS := $(LIBC_SRCS:%.c=$(BUILD_DIR)/%.o)
 STDLIB_OBJS := $(STDLIB_SRCS:%.c=$(BUILD_DIR)/%.o)
-CRT_OBJS := $(CRT_SRCS:%.c=$(BUILD_DIR)/%.o)
+CRT_OBJS := $(CRT_SRCS:%.s=$(BUILD_DIR)/%.o)
 C_OBJS := $(LIBC_OBJS) $(STDLIB_OBJS) $(CRT_OBJS)
 
 .PHONY: all clean
@@ -55,6 +55,10 @@ all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(SHELL_PROGRAM) $(TEST_PROGRAM) ../dis
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+$(CRT_OBJS): $(CRT_SRCS)
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(LIBC_LIB): $(LIBC_OBJS)
 	$(AR) rcs $@ $^
