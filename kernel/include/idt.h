@@ -6,6 +6,7 @@
 #define SYS_EXIT    1
 #define SYS_READ    3
 #define SYS_WRITE   4
+#define SYS_WAITPID 7
 #define SYS_MMAP    9
 #define SYS_EXECVE 11
 #define SYS_BRK    45

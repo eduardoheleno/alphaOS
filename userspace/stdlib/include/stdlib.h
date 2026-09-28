@@ -36,5 +36,6 @@ static inline uint32_t pages_required(uint32_t len)
 
 void* malloc(size_t size);
 void free(void* addr);
+char* getenv(char* name);
 
 #endif

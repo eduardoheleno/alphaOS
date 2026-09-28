@@ -97,6 +97,6 @@ typedef struct tar_header tar_header;
 
 void init_fs(multiboot_info_t* mbi);
 file_t* open_file(char* path);
-size_t load_in_memory(char* path, uint8_t** program_buffer);
+int load_in_memory(const char* path, uint8_t** program_buffer);
 
 #endif

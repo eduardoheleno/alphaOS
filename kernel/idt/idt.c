@@ -55,6 +55,8 @@ void syscall_handler(cpu_task_state_t* state)
         case SYS_WRITE:
             state->eax = sys_write(state->ebx, (char*)state->ecx, state->edx);
             break;
+        case SYS_WAITPID:
+            state->eax = sys_waitpid(state, (uint32_t)state->ebx);
         case SYS_MMAP:
             state->eax = sys_mmap((void*)state->ebx, state->ecx);
             break;

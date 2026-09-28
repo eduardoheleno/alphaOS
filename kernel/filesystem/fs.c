@@ -278,7 +278,7 @@ static char* extract_dirname(char *file_path)
     return NULL;
 }
 
-static char* extract_filename(char *file_path)
+static char* extract_filename(const char *file_path)
 {
     char *filename = kmalloc(28);
     for (int i = strlen(file_path) - 1; i >= 0; i--)
@@ -373,7 +373,7 @@ static file_t* lookup_devices(char *name)
     return NULL;
 }
 
-static void next_dir_name(char *buffer, uint32_t *cursor, size_t *size, char *path)
+static void next_dir_name(char *buffer, uint32_t *cursor, size_t *size, const char *path)
 {
     *size = 0;
     while (path[*cursor] != '/' && path[*cursor] != '\0')
@@ -600,7 +600,7 @@ static file_ops_t fs_ops(void)
     };
 }
 
-static file_t* search_on_disk(char *path)
+static file_t* search_on_disk(const char *path)
 {
     char *target_file = extract_filename(path);
     char dirname[512];
@@ -636,14 +636,23 @@ static file_t* search_on_disk(char *path)
                 entries = (struct dir_entry*)read_inode_data(current_inode);
                 break;
             }
+            else
+            {
+                if (i == current_inode.size / sizeof(struct dir_entry) - 1)
+                    return NULL;
+            }
         }
         next_dir_name(dirname, &cursor, &size, path);
     }
 }
 
-size_t load_in_memory(char *path, uint8_t **program_buffer)
+int load_in_memory(const char *path, uint8_t **program_buffer)
 {
     file_t *f = search_on_disk(path);
+    if (f == NULL)
+        return -1;
+    // if (f == NULL)
+    //     debug_write("test\n");
     size_t program_size = f->inode.size;
     *program_buffer = read_inode_data(f->inode);
     kfree(f);

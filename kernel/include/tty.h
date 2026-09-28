@@ -21,9 +21,8 @@
 #define SET_FLAG_REQUEST   1
 #define CLEAR_FLAG_REQUEST 2
 
-#define WONLY_FLAG (0 << 0)
-#define RONLY_FLAG (1 << 0)
-#define ECHO_FLAG  (1 << 1)
+#define CLEAR_SCREEN_FLAG (1 << 0)
+#define ECHO_FLAG         (1 << 1)
 
 enum vga_color {
 	VGA_COLOR_BLACK = 0,
@@ -51,7 +50,6 @@ void terminal_writehex(uint32_t value);
 void terminal_write(const char* data, size_t size);
 size_t strlen(const char* str);
 void write_tty_buffer(char c);
-void terminal_clear(void);
 // int stdin_buffer_has_line(void);
 file_ops_t tty_ops(void);
 

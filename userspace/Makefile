@@ -18,6 +18,11 @@ SHELL_OBJS := $(SHELL_SRCS:%.c=$(BUILD_DIR)/%.o)
 SHELL_ELF := $(BUILD_DIR)/shell.elf
 SHELL_PROGRAM := $(BUILD_DIR)/shell.bin
 
+CLEAR_SRCS := ./programs/clear.c
+CLEAR_OBJS := $(SHELL_SRCS:%.c=$(BUILD_DIR)/%.o)
+CLEAR_ELF := $(BUILD_DIR)/clear.elf
+CLEAR_PROGRAM := $(BUILD_DIR)/clear.bin
+
 TEST_SRCS := ./programs/test.c
 TEST_OBJS := $(TEST_SRCS:%.c=$(BUILD_DIR)/%.o)
 TEST_ELF := $(BUILD_DIR)/test.elf
@@ -32,13 +37,16 @@ LIBC_SRCS := \
 		  ./libc/stdio/getch.c \
 		  ./libc/string.c \
 		  ./libc/ioctl.c \
+		  ./libc/waitpid.c \
 		  ./libc/mmap.c \
 		  ./libc/munmap.c \
-		  ./libc/execve.c
+		  ./libc/execve.c \
+		  ./libc/execvp.c
 
 STDLIB_SRCS := \
 		  ./stdlib/malloc.c \
-		  ./stdlib/free.c
+		  ./stdlib/free.c \
+		  ./stdlib/getenv.c
 
 CRT_SRCS := \
 		  ./crt/crt0.s
@@ -50,7 +58,7 @@ C_OBJS := $(LIBC_OBJS) $(STDLIB_OBJS) $(CRT_OBJS)
 
 .PHONY: all clean
 
-all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(SHELL_PROGRAM) $(TEST_PROGRAM) ../disk.img
+all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(SHELL_PROGRAM) $(CLEAR_PROGRAM) $(TEST_PROGRAM) ../disk.img
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
@@ -69,13 +77,19 @@ $(STDLIB_LIB): $(STDLIB_OBJS)
 $(SHELL_PROGRAM): $(SHELL_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	mkdir -p $(BUILD_DIR)/programs
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(SHELL_SRCS) -o $(SHELL_OBJS)
-	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(SHELL_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(SHELL_ELF)
+	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(SHELL_OBJS) --start-group $(STDLIB_LIB) $(LIBC_LIB) --end-group -o $(SHELL_ELF)
 	$(OBJCOPY) -O binary $(SHELL_ELF) $@
+
+$(CLEAR_PROGRAM): $(CLEAR_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
+	mkdir -p $(BUILD_DIR)/programs
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(CLEAR_SRCS) -o $(CLEAR_OBJS)
+	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(CLEAR_OBJS) --start-group $(STDLIB_LIB) $(LIBC_LIB) --end-group -o $(CLEAR_ELF)
+	$(OBJCOPY) -O binary $(CLEAR_ELF) $@
 
 $(TEST_PROGRAM): $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	mkdir -p $(BUILD_DIR)/programs
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(TEST_SRCS) -o $(TEST_OBJS)
-	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(TEST_OBJS) $(STDLIB_LIB) $(LIBC_LIB) -o $(TEST_ELF)
+	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(TEST_OBJS) --start-group $(STDLIB_LIB) $(LIBC_LIB) --end-group -o $(TEST_ELF)
 	$(OBJCOPY) -O binary $(TEST_ELF) $@
 
 ../disk.img: $(SHELL_SRCS) $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)

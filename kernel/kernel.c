@@ -49,8 +49,6 @@ void kernel_main(
     unmap_identity();
     reload_cr3();
 
-    // TODO: terminal_clear() shouldn't be called directly
-    terminal_clear();
     enqueue_task("/bin/shell");
     
     for (;;) 

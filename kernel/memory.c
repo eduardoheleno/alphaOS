@@ -309,8 +309,16 @@ uintptr_t mmap_ring3(uint8_t* program_buffer, size_t size)
     {
         tmp_virt_page_table_entry2[i] = 0x0;
     }
-    uint32_t* stack = (uint32_t*)tmp_virt_page_table_entry2;
-    stack[PAGE_SIZE / sizeof(*stack) - 1] = 12;
+
+    const char default_path[] = "PATH=/bin";
+    const size_t string_offset = PAGE_SIZE - 16;
+    const size_t argument_offset = PAGE_SIZE - 32;
+    char* stack = (char*)tmp_virt_page_table_entry2;
+    for (size_t i = 0; i < sizeof(default_path); i++)
+    {
+        stack[string_offset + i] = default_path[i];
+    }
+    *(uint32_t*)(stack + argument_offset) = USER_STACK + string_offset;
     unmap_tmp_page();
 
     uintptr_t page_table_phys_addr = pmm_alloc(1);
@@ -357,7 +365,7 @@ void unmmap_ring3(uintptr_t page_directory_phys_addr)
                 uint32_t t_addr = tmp_pt[pt_idx];
                 if (t_addr != 0x0)
                 {
-                    terminal_writestring("table free\n");
+                    // terminal_writestring("table free\n");
                     tmp_pt[pt_idx] = 0x0;
                     pmm_free((void*)(t_addr & PAGE_MASK), 1);
                 }
@@ -369,7 +377,7 @@ void unmmap_ring3(uintptr_t page_directory_phys_addr)
                 uintptr_t* tmp_pd = map_tmp_page(page_directory_phys_addr);
                 if (tmp_pd[pte_idx] & PAGE_PRESENT)
                 {
-                    terminal_writestring("page table free\n");
+                    // terminal_writestring("page table free\n");
                     tmp_pd[pte_idx] = 0x0;
                     pmm_free((void*)(pt_addr & PAGE_MASK), 1);
                 }

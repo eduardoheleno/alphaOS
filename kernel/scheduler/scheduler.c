@@ -7,14 +7,14 @@
 #include "misc.h"
 #include "tty.h"
 
-task_t *current_task = NULL;
+task_t* current_task = NULL;
 
-static task_t *idle_task = NULL;
-static task_t *reaper_task = NULL;
-static task_t *dead_queue = NULL;
-task_t *awaiting_stdin = NULL;
+static task_t* idle_task = NULL;
+static task_t* reaper_task = NULL;
+static task_t* dead_queue = NULL;
+task_t* awaiting_stdin = NULL;
 
-static uint64_t task_total = 0;
+static uint64_t active_task_total = 0;
 static uint64_t next_pid = 0;
 
 extern tss_t tss;
@@ -76,22 +76,48 @@ static void load_context(cpu_task_state_t* state)
     load_cr3(current_task->cr3);
 }
 
-void await_stdin(cpu_task_state_t *state)
+void await_stdin(cpu_task_state_t* state)
 {
     disable_interrupts();
+    active_task_total--;
 
     current_task->status = TASK_SLEEP;
     state->eip -= 2;
-    if (task_total == 1) wake_idle_task();
+    if (active_task_total == 1) 
+        wake_idle_task();
     awaiting_stdin = current_task;
     load_context(state);
     restore_task_context(&current_task->context);
+}
+
+void await_pid(cpu_task_state_t* state, uint32_t pid)
+{
+    task_t* task = current_task->next;
+    while (1)
+    {
+        if (task->pid == pid)
+        {
+            task->blocked_tasks[task->blocked_tasks_index] = current_task;
+            current_task->status = TASK_SLEEP;
+            task->blocked_tasks_index++;
+            active_task_total--;
+
+            if (active_task_total == 1)
+                wake_idle_task();
+            load_context(state);
+            restore_task_context(&current_task->context);
+        }
+        task = task->next;
+    }
+
+    debug_write("await_pid error\n");
 }
 
 void wake_stdin_task(void)
 {
     if (awaiting_stdin != NULL)
     {
+        active_task_total++;
         awaiting_stdin->status = TASK_READY;
         awaiting_stdin = NULL;
     }
@@ -129,10 +155,12 @@ void task_exit(void)
 {
     disable_interrupts();
 
-    if (--task_total == 0)
+    if (--active_task_total == 0)
     {
         wake_idle_task();
     }
+    debug_int(active_task_total);
+    debug_write("\n");
 
     task_t *tmp_task = current_task;
     while (tmp_task->next != current_task)
@@ -140,6 +168,12 @@ void task_exit(void)
         tmp_task = tmp_task->next;
     }
     tmp_task->next = current_task->next;
+
+    for (uint16_t i = 0; i < current_task->blocked_tasks_index; i++)
+    {
+        current_task->blocked_tasks[i]->status = TASK_READY;
+        active_task_total++;
+    }
 
     task_t *dead_task = current_task;
     load_context(NULL);
@@ -154,9 +188,14 @@ static void task_trampoline(void)
     task_exit();
 }
 
-task_t* create_ring3_task(char *path)
+task_t* create_ring3_task(const char* path)
 {
-    task_t *new_task = kmalloc(sizeof(task_t));
+    uint8_t* program_buffer = NULL;
+    int program_size = load_in_memory(path, &program_buffer);
+    if (program_size < 0)
+        return NULL;
+
+    task_t* new_task = kmalloc(sizeof(task_t));
     new_task->context.edi = 0;
     new_task->context.esi = 0;
     new_task->context.ebp = 0;
@@ -174,6 +213,8 @@ task_t* create_ring3_task(char *path)
     new_task->status = TASK_READY;
     new_task->type = RING3_TASK;
     new_task->context.eflags = 0x202;
+    kmemset(new_task->blocked_tasks, 0, sizeof(new_task->blocked_tasks));
+    new_task->blocked_tasks_index = 0;
 
     void* kernel_stack = kmalloc(PAGE_SIZE);
     new_task->ring0_stack_base = kernel_stack;
@@ -182,12 +223,10 @@ task_t* create_ring3_task(char *path)
     new_task->context.cs = USER_CS;
     new_task->context.ds = USER_DS;
 
-    uint8_t* program_buffer = NULL;
-    size_t program_size = load_in_memory(path, &program_buffer);
     new_task->cr3 = mmap_ring3(program_buffer, program_size);
     new_task->ring3_stack_base = (void*)USER_STACK;
     new_task->ring3_stack_size = PAGE_SIZE;
-    new_task->context.esp = USER_STACK + PAGE_SIZE - sizeof(uint32_t);
+    new_task->context.esp = USER_STACK + PAGE_SIZE - 32;
     new_task->context.eip = USER_CODE;
 
     return new_task;
@@ -213,6 +252,8 @@ static task_t* create_task(void *entry, task_type_t type)
     new_task->status = TASK_READY;
     new_task->type = type;
     new_task->context.eflags = 0x202;
+    kmemset(new_task->blocked_tasks, 0, sizeof(new_task->blocked_tasks));
+    new_task->blocked_tasks_index = 0;
 
     void* kernel_stack = kmalloc(PAGE_SIZE);
     new_task->ring0_stack_base = kernel_stack;
@@ -242,9 +283,12 @@ static task_t* create_task(void *entry, task_type_t type)
     return new_task;
 }
 
-void enqueue_task(char* path)
+int enqueue_task(const char* path)
 {
     task_t* new_task = create_ring3_task(path);
+    if (new_task ==  NULL)
+        return -1;
+
     task_t* tmp_task = current_task;
     while (tmp_task->next != current_task)
     {
@@ -253,8 +297,9 @@ void enqueue_task(char* path)
 
     tmp_task->next = new_task;
     new_task->next = current_task;
-    task_total++;
+    active_task_total++;
     sleep_idle_task();
+    return new_task->pid;
 }
 
 static void idle_task_loop(void)
@@ -309,12 +354,14 @@ void init_scheduler(void)
 
 void scheduler_tick(cpu_task_state_t* state)
 {
-    if (task_total == 0)
+    if (active_task_total == 0)
     {
         wake_idle_task();
     }
 
     task_t *ntask = next_task();
+    // debug_int(ntask->pid);
+    // debug_write("\n");
     if (ntask == current_task)
     {
         pic_send_eoi(0);

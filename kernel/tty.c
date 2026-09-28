@@ -189,7 +189,7 @@ void write_tty_buffer(char c)
     wake_stdin_task();
 }
 
-void terminal_clear(void)
+static void terminal_clear(void)
 {
     terminal_row = 0;
     terminal_column = 0;
@@ -213,6 +213,12 @@ static void tty_write(file_t* f, const void *buf, size_t len)
 static int tty_ioctl(file_t* f, unsigned long request, void *arg)
 {
     unsigned long casted_arg = (unsigned long)arg;
+    if (casted_arg & CLEAR_SCREEN_FLAG) 
+    {
+        terminal_clear();
+        return 1;
+    }
+
     switch (request)
     {
         case SET_FLAG_REQUEST:

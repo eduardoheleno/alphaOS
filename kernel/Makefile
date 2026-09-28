@@ -36,6 +36,7 @@ C_SRCS := \
 	syscall/write.c \
 	syscall/ioctl.c \
 	syscall/execve.c \
+	syscall/waitpid.c \
 	graphics/framebuffer.c \
 	graphics/font.c
 
@@ -70,6 +71,7 @@ $(BUILD_DIR)/%_asm.o: %.s
 
 initrd:
 	cp ../userspace/build/shell.bin ../initrd/bin/shell
+	cp ../userspace/build/clear.bin ../initrd/bin/clear
 	cp ../userspace/build/test.bin ../initrd/bin/test
 	tar --format=ustar -cf ../iso/boot/initrd.img -C ../initrd .
 
