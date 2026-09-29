@@ -71,9 +71,17 @@ struct file_ops
     int (*close)(file_t* f);
 };
 
+enum file_type
+{
+    FILE,
+    DEVICE
+};
+typedef enum file_type file_type_t;
+
 struct file
 {
     char name[28];
+    file_type_t type;
     file_ops_t ops;
     inode_t inode;
     uint32_t off;
@@ -96,7 +104,7 @@ struct tar_header
 typedef struct tar_header tar_header;
 
 void init_fs(multiboot_info_t* mbi);
-file_t* open_file(char* path);
+file_t* open_file(const char* path);
 int load_in_memory(const char* path, uint8_t** program_buffer);
 
 #endif

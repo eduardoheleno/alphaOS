@@ -19,9 +19,14 @@ SHELL_ELF := $(BUILD_DIR)/shell.elf
 SHELL_PROGRAM := $(BUILD_DIR)/shell.bin
 
 CLEAR_SRCS := ./programs/clear.c
-CLEAR_OBJS := $(SHELL_SRCS:%.c=$(BUILD_DIR)/%.o)
+CLEAR_OBJS := $(CLEAR_SRCS:%.c=$(BUILD_DIR)/%.o)
 CLEAR_ELF := $(BUILD_DIR)/clear.elf
 CLEAR_PROGRAM := $(BUILD_DIR)/clear.bin
+
+LS_SRCS := ./programs/ls.c
+LS_OBJS := $(LS_SRCS:%.c=$(BUILD_DIR)/%.o)
+LS_ELF := $(BUILD_DIR)/ls.elf
+LS_PROGRAM := $(BUILD_DIR)/ls.bin
 
 TEST_SRCS := ./programs/test.c
 TEST_OBJS := $(TEST_SRCS:%.c=$(BUILD_DIR)/%.o)
@@ -32,6 +37,7 @@ LIBC_SRCS := \
 		  ./libc/unistd/exit.c \
 		  ./libc/unistd/read.c \
 		  ./libc/unistd/write.c \
+		  ./libc/unistd/open.c \
 		  ./libc/stdio/printf.c \
 		  ./libc/stdio/fgets.c \
 		  ./libc/stdio/getch.c \
@@ -41,7 +47,8 @@ LIBC_SRCS := \
 		  ./libc/mmap.c \
 		  ./libc/munmap.c \
 		  ./libc/execve.c \
-		  ./libc/execvp.c
+		  ./libc/execvp.c \
+		  ./libc/getdents.c
 
 STDLIB_SRCS := \
 		  ./stdlib/malloc.c \
@@ -58,7 +65,7 @@ C_OBJS := $(LIBC_OBJS) $(STDLIB_OBJS) $(CRT_OBJS)
 
 .PHONY: all clean
 
-all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(SHELL_PROGRAM) $(CLEAR_PROGRAM) $(TEST_PROGRAM) ../disk.img
+all: $(C_OBJS) $(LIBC_LIB) $(STDLIB_LIB) $(SHELL_PROGRAM) $(CLEAR_PROGRAM) $(LS_PROGRAM) $(TEST_PROGRAM) ../disk.img
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
@@ -85,6 +92,12 @@ $(CLEAR_PROGRAM): $(CLEAR_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(CLEAR_SRCS) -o $(CLEAR_OBJS)
 	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(CLEAR_OBJS) --start-group $(STDLIB_LIB) $(LIBC_LIB) --end-group -o $(CLEAR_ELF)
 	$(OBJCOPY) -O binary $(CLEAR_ELF) $@
+
+$(LS_PROGRAM): $(LS_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
+	mkdir -p $(BUILD_DIR)/programs
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(LS_SRCS) -o $(LS_OBJS)
+	$(LD) -m elf_i386 -Ttext=0x00001000 -e _start $(CRT_OBJS) $(LS_OBJS) --start-group $(STDLIB_LIB) $(LIBC_LIB) --end-group -o $(LS_ELF)
+	$(OBJCOPY) -O binary $(LS_ELF) $@
 
 $(TEST_PROGRAM): $(TEST_SRCS) $(LIBC_LIB) $(STDLIB_LIB) $(CRT_OBJS)
 	mkdir -p $(BUILD_DIR)/programs

@@ -33,9 +33,6 @@ static const char *scancodes[] =
 void keyboard_interrupt_handler(void)
 {
     uint8_t scancode = inb(0x60);
-    // debug_int(scancode);
-    // debug_write("\n");
-
     if ((scancode & 0x80) == 0) 
     {
         write_tty_buffer(*scancodes[scancode]);

@@ -8,6 +8,7 @@ static void register_device(const char* name, file_ops_t ops,
     file_t device;
     kmemcpy(device.name, (void*)name, strlen(name));
     device.ops = ops;
+    device.type = DEVICE;
     buffer[index] = device;
 }
 

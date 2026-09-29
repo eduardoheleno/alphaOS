@@ -55,8 +55,12 @@ void syscall_handler(cpu_task_state_t* state)
         case SYS_WRITE:
             state->eax = sys_write(state->ebx, (char*)state->ecx, state->edx);
             break;
+        case SYS_OPEN:
+            state->eax = sys_open((const char*)state->ebx);
+            break;
         case SYS_WAITPID:
             state->eax = sys_waitpid(state, (uint32_t)state->ebx);
+            break;
         case SYS_MMAP:
             state->eax = sys_mmap((void*)state->ebx, state->ecx);
             break;
@@ -68,6 +72,9 @@ void syscall_handler(cpu_task_state_t* state)
             break;
         case SYS_MUNMAP:
             state->eax = sys_munmap((void*)state->ebx, state->ecx);
+            break;
+        case SYS_GETDENTS:
+            state->eax = sys_getdents(state->ebx, (void*)state->ecx);
             break;
         case 2:
             terminal_writestring("test syscall executed\n");

@@ -1,15 +1,14 @@
-#include "unistd.h"
+#include "getdents.h"
 
-int read(unsigned int fd, void* buf, size_t len)
+int getdents(int fd, void* buffer)
 {
     int ret;
     __asm__ volatile (
         "int $0x80"
         : "=a"(ret)
-        : "a"(3),
+        : "a"(141),
           "b"(fd),
-          "c"(buf),
-          "d"(len)
+          "c"(buffer)
         : "memory"
     );
 

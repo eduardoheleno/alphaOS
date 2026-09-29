@@ -6,7 +6,7 @@
 #include "graphics/font.h"
 #include "misc.h"
 
-extern task_t *current_task;
+extern task_t* current_task;
 
 static size_t terminal_row;
 static size_t terminal_column;

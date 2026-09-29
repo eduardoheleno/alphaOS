@@ -34,9 +34,11 @@ C_SRCS := \
 	syscall/munmap.c \
 	syscall/read.c \
 	syscall/write.c \
+	syscall/open.c \
 	syscall/ioctl.c \
 	syscall/execve.c \
 	syscall/waitpid.c \
+	syscall/getdents.c \
 	graphics/framebuffer.c \
 	graphics/font.c
 
@@ -72,6 +74,7 @@ $(BUILD_DIR)/%_asm.o: %.s
 initrd:
 	cp ../userspace/build/shell.bin ../initrd/bin/shell
 	cp ../userspace/build/clear.bin ../initrd/bin/clear
+	cp ../userspace/build/ls.bin ../initrd/bin/ls
 	cp ../userspace/build/test.bin ../initrd/bin/test
 	tar --format=ustar -cf ../iso/boot/initrd.img -C ../initrd .
 

@@ -159,8 +159,6 @@ void task_exit(void)
     {
         wake_idle_task();
     }
-    debug_int(active_task_total);
-    debug_write("\n");
 
     task_t *tmp_task = current_task;
     while (tmp_task->next != current_task)
@@ -203,6 +201,10 @@ task_t* create_ring3_task(const char* path)
     new_task->context.edx = 0;
     new_task->context.ecx = 0;
     new_task->context.eax = 0;
+
+    char* cwd = kmalloc(1);
+    cwd = "/";
+    new_task->cwd = cwd;
 
     new_task->fds[FD_STDIN] = open_file("/dev/tty");
     new_task->fds[FD_STDOUT] = open_file("/dev/tty");
@@ -322,8 +324,8 @@ static void reaper_task_loop(void)
 
             for (size_t i = 0; i < dead_task->total_fds; i++)
             {
-                // TODO: fix this
-                kfree(dead_task->fds[i]);
+                if (dead_task->fds[i]->type == FILE)
+                    kfree(dead_task->fds[i]);
             }
 
             kfree(dead_task->ring0_stack_base);
@@ -360,8 +362,6 @@ void scheduler_tick(cpu_task_state_t* state)
     }
 
     task_t *ntask = next_task();
-    // debug_int(ntask->pid);
-    // debug_write("\n");
     if (ntask == current_task)
     {
         pic_send_eoi(0);

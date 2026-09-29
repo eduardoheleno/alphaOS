@@ -55,6 +55,8 @@ struct task
     cpu_task_state_t context;
     uintptr_t cr3;
 
+    char* cwd;
+
     struct task* blocked_tasks[10];
     uint32_t blocked_tasks_index;
 
