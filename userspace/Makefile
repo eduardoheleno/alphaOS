@@ -48,7 +48,9 @@ LIBC_SRCS := \
 		  ./libc/munmap.c \
 		  ./libc/execve.c \
 		  ./libc/execvp.c \
-		  ./libc/getdents.c
+		  ./libc/getcwd.c \
+		  ./libc/getdents.c \
+		  ./libc/chdir.c
 
 STDLIB_SRCS := \
 		  ./stdlib/malloc.c \

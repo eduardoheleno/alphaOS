@@ -39,6 +39,8 @@ C_SRCS := \
 	syscall/execve.c \
 	syscall/waitpid.c \
 	syscall/getdents.c \
+	syscall/getcwd.c \
+	syscall/chdir.c \
 	graphics/framebuffer.c \
 	graphics/font.c
 

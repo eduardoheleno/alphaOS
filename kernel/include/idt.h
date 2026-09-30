@@ -10,10 +10,12 @@
 #define SYS_WAITPID  7
 #define SYS_MMAP     9
 #define SYS_EXECVE   11
+#define SYS_CHDIR    12
 #define SYS_BRK      45
 #define SYS_IOCTL    54
 #define SYS_MUNMAP   91
 #define SYS_GETDENTS 141
+#define SYS_GETCWD   183
 
 struct idt_entry
 {

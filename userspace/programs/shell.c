@@ -1,7 +1,9 @@
 #include "stdio.h"
+#include "getcwd.h"
 #include "ioctl.h"
 #include "execvp.h"
 #include "waitpid.h"
+#include "chdir.h"
 
 int main(void)
 {
@@ -14,8 +16,10 @@ int main(void)
     ioctl(stdin, SET_FLAG_REQUEST, (void*)echo_flag);
 
     char command_buffer[100];
+    char cwd_buffer[100];
+    getcwd(cwd_buffer);
     int cursor = 0;
-    printf("alphaOS$ ");
+    printf("alphaOS$ %s> ", cwd_buffer);
     while (1)
     {
         int ch = getch();
@@ -33,7 +37,8 @@ int main(void)
                 printf("Unknown command: %s\n", command_buffer);
             }
             cursor = 0;
-            printf("alphaOS$ ");
+            getcwd(cwd_buffer);
+            printf("alphaOS$ %s> ", cwd_buffer);
             continue;
         }
 

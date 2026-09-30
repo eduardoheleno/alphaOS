@@ -67,6 +67,9 @@ void syscall_handler(cpu_task_state_t* state)
         case SYS_EXECVE:
             state->eax = sys_execve((const char*)state->ebx);
             break;
+        case SYS_CHDIR:
+            state->eax = sys_chdir((const char*)state->ebx);
+            break;
         case SYS_IOCTL:
             state->eax = sys_ioctl(state->ebx, state->ecx, (void*)state->edx);
             break;
@@ -75,6 +78,9 @@ void syscall_handler(cpu_task_state_t* state)
             break;
         case SYS_GETDENTS:
             state->eax = sys_getdents(state->ebx, (void*)state->ecx);
+            break;
+        case SYS_GETCWD:
+            state->eax = sys_getcwd((char*)state->ebx);
             break;
         case 2:
             terminal_writestring("test syscall executed\n");

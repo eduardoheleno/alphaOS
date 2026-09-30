@@ -609,28 +609,6 @@ static file_t* search_on_disk(const char* path)
     inode_t root_inode;
     read_inode(global_root_inode_num, &root_inode);
     inode_t current_inode = root_inode;
-
-    if (kstrcmp(target_file, ".", 1) == 0)
-    {
-        if (kstrcmp(current_task->cwd, "/", strlen(current_task->cwd)) == 0)
-        {
-            file_t* file = kmalloc(sizeof(file_t));
-            kmemcpy(file->name, "/", 1);
-            file->ops = fs_ops();
-            file->inode = root_inode;
-            file->off = 0;
-            file->type = FILE;
-
-            kfree(target_file);
-            return file;
-        }
-        else
-        {
-            kfree(target_file);
-            target_file = extract_filename(current_task->cwd);
-        }
-    }
-
     struct dir_entry* entries = (struct dir_entry*)read_inode_data(current_inode);
     next_dir_name(dirname, &cursor, &size, path);
     while (1)

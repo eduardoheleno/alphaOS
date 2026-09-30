@@ -202,9 +202,8 @@ task_t* create_ring3_task(const char* path)
     new_task->context.ecx = 0;
     new_task->context.eax = 0;
 
-    char* cwd = kmalloc(1);
-    cwd = "/";
-    new_task->cwd = cwd;
+    new_task->cwd = kmalloc(sizeof(char));
+    new_task->cwd[0] = '/';
 
     new_task->fds[FD_STDIN] = open_file("/dev/tty");
     new_task->fds[FD_STDOUT] = open_file("/dev/tty");

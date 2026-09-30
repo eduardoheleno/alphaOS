@@ -17,5 +17,7 @@ int sys_munmap(void* addr, size_t len);
 int sys_execve(const char* path);
 int sys_waitpid(cpu_task_state_t* state, uint32_t pid);
 int sys_getdents(uintptr_t fd, void* buffer);
+int sys_getcwd(char* buffer);
+int sys_chdir(const char* path);
 
 #endif
