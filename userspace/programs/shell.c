@@ -37,6 +37,13 @@ int main(void)
             continue;
         }
 
+        if (ch == '\b')
+        {
+            if (cursor > 0)
+                cursor--;
+            continue;
+        }
+
         command_buffer[cursor] = ch;
         cursor++;
     }

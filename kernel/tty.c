@@ -1,6 +1,5 @@
 #include "tty.h"
 
-#include "memory.h"
 #include "scheduler.h"
 #include "graphics/framebuffer.h"
 #include "graphics/font.h"
@@ -15,11 +14,12 @@ static uint16_t* terminal_buffer = (uint16_t*)VGA_MEMORY;
 
 static char stdin_buffer[STDIN_BUFFER_SIZE];
 static uint32_t buffer_head = 0;
+static uint32_t buffer_cursor = 0; 
 static uint32_t offset;
 
 static unsigned long flags;
 
-extern task_t *awaiting_stdin;
+extern task_t* awaiting_stdin;
 
 size_t strlen(const char* str) 
 {
@@ -72,8 +72,6 @@ static void terminal_draw_cursor(void)
         y++;
     }
 }
-
-
 
 void terminal_initialize(void) 
 {
@@ -182,8 +180,20 @@ void terminal_writehex(uint32_t value)
 
 void write_tty_buffer(char c)
 {
-    if (flags & ECHO_FLAG) terminal_write(&c, 1);
-    if (buffer_head == STDIN_BUFFER_SIZE - 1) buffer_head = 0;
+    if (flags & ECHO_FLAG)
+    {
+        if (c == '\b' && buffer_cursor - 1 <= 0)
+        {
+            terminal_write(&c, 1);
+            buffer_cursor--;
+        }
+        if (c != '\b')
+            terminal_write(&c, 1);
+    }
+    if (buffer_head == STDIN_BUFFER_SIZE - 1) 
+        buffer_head = 0;
+    if (c != '\b')
+        buffer_cursor++;
     stdin_buffer[buffer_head] = c;
     buffer_head++;
     wake_stdin_task();
