@@ -77,13 +77,13 @@ struct task
 typedef struct task task_t;
 
 void init_scheduler(void);
-int enqueue_task(const char* path);
+int enqueue_task(const char* path, const char* arg);
 void scheduler_tick(cpu_task_state_t* state);
 void task_exit(void);
 void await_stdin(cpu_task_state_t* state);
 void wake_stdin_task(void);
 void await_pid(cpu_task_state_t* state, uint32_t pid);
 
-task_t* create_ring3_task(const char* path);
+task_t* create_ring3_task(const char* path, const char* arg);
 
 #endif

@@ -287,7 +287,7 @@ static void unmmap(uintptr_t virt_addr, size_t npages)
     }
 }
 
-uintptr_t mmap_ring3(uint8_t* program_buffer, size_t size)
+uintptr_t mmap_ring3(uint8_t* program_buffer, size_t size, const char* arg)
 {
     uintptr_t page_table_entry_phys_addr1 = pmm_alloc(1);
     uintptr_t* tmp_virt_page_table_entry1 = map_tmp_page(page_table_entry_phys_addr1);
@@ -310,15 +310,17 @@ uintptr_t mmap_ring3(uint8_t* program_buffer, size_t size)
         tmp_virt_page_table_entry2[i] = 0x0;
     }
 
-    const char default_path[] = "PATH=/bin";
-    const size_t string_offset = PAGE_SIZE - 16;
-    const size_t argument_offset = PAGE_SIZE - 32;
-    char* stack = (char*)tmp_virt_page_table_entry2;
-    for (size_t i = 0; i < sizeof(default_path); i++)
+    if (arg != NULL)
     {
-        stack[string_offset + i] = default_path[i];
+        const size_t string_offset = PAGE_SIZE - 16;
+        const size_t argument_offset = PAGE_SIZE - 32;
+        char* stack = (char*)tmp_virt_page_table_entry2;
+        for (size_t i = 0; i < strlen(arg); i++)
+        {
+            stack[string_offset + i] = arg[i];
+        }
+        *(uint32_t*)(stack + argument_offset) = USER_STACK + string_offset;
     }
-    *(uint32_t*)(stack + argument_offset) = USER_STACK + string_offset;
     unmap_tmp_page();
 
     uintptr_t page_table_phys_addr = pmm_alloc(1);

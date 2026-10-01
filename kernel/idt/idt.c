@@ -65,7 +65,7 @@ void syscall_handler(cpu_task_state_t* state)
             state->eax = sys_mmap((void*)state->ebx, state->ecx);
             break;
         case SYS_EXECVE:
-            state->eax = sys_execve((const char*)state->ebx);
+            state->eax = sys_execve((const char*)state->ebx, (const char*)state->ecx);
             break;
         case SYS_CHDIR:
             state->eax = sys_chdir((const char*)state->ebx);

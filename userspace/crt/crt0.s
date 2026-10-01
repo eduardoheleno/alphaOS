@@ -1,5 +1,5 @@
 .section .bss
-envp:
+arg:
     .space 4
 
 .globl envp
@@ -10,6 +10,6 @@ envp:
 .section .text
 _start:
     movl (%esp), %eax
-    movl %eax, envp
+    movl %eax, arg
     call main
     call exit

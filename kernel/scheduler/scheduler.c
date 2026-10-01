@@ -186,7 +186,7 @@ static void task_trampoline(void)
     task_exit();
 }
 
-task_t* create_ring3_task(const char* path)
+task_t* create_ring3_task(const char* path, const char* arg)
 {
     uint8_t* program_buffer = NULL;
     int program_size = load_in_memory(path, &program_buffer);
@@ -202,8 +202,16 @@ task_t* create_ring3_task(const char* path)
     new_task->context.ecx = 0;
     new_task->context.eax = 0;
 
-    new_task->cwd = kmalloc(sizeof(char));
-    new_task->cwd[0] = '/';
+    if (current_task != NULL && current_task->cwd != NULL)
+    {
+        new_task->cwd = kmalloc(sizeof(char) * strlen(current_task->cwd));
+        kmemcpy(new_task->cwd, current_task->cwd, strlen(current_task->cwd));
+    }
+    else
+    {
+        new_task->cwd = kmalloc(sizeof(char));
+        new_task->cwd[0] = '/';
+    }
 
     new_task->fds[FD_STDIN] = open_file("/dev/tty");
     new_task->fds[FD_STDOUT] = open_file("/dev/tty");
@@ -224,7 +232,7 @@ task_t* create_ring3_task(const char* path)
     new_task->context.cs = USER_CS;
     new_task->context.ds = USER_DS;
 
-    new_task->cr3 = mmap_ring3(program_buffer, program_size);
+    new_task->cr3 = mmap_ring3(program_buffer, program_size, arg);
     new_task->ring3_stack_base = (void*)USER_STACK;
     new_task->ring3_stack_size = PAGE_SIZE;
     new_task->context.esp = USER_STACK + PAGE_SIZE - 32;
@@ -284,9 +292,9 @@ static task_t* create_task(void *entry, task_type_t type)
     return new_task;
 }
 
-int enqueue_task(const char* path)
+int enqueue_task(const char* path, const char* arg)
 {
-    task_t* new_task = create_ring3_task(path);
+    task_t* new_task = create_ring3_task(path, arg);
     if (new_task ==  NULL)
         return -1;
 

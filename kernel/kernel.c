@@ -49,7 +49,7 @@ void kernel_main(
     unmap_identity();
     reload_cr3();
 
-    enqueue_task("/bin/shell");
+    enqueue_task("/bin/shell", NULL);
     
     for (;;) 
     {
